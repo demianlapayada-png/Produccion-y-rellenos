@@ -158,6 +158,9 @@
   }
   .hb-collapse-btn:active{ background:var(--panel); }
   #horarios-body.collapsed{ display:none; }
+  #estimado-body.collapsed{ display:none; }
+  #estimado-header{ justify-content:flex-start; gap:10px; flex-wrap:wrap; }
+  #estimado-header .stub-value{ margin-right:auto; }
   #horarios-header{ justify-content:flex-start; gap:10px; flex-wrap:wrap; }
   #horarios-header .stub-value{ margin-right:auto; }
   .total-box{
@@ -368,6 +371,9 @@
         <h2 class="section-title">Producción de hoy, sabor por sabor</h2>
         <div class="reg-list" id="detalle-produccion-list"></div>
 
+        <h2 class="section-title">Comparativa: estimado vs. real (hoy)</h2>
+        <div class="reg-list" id="detalle-comparativa-list"></div>
+
         <h2 class="section-title">Últimos movimientos</h2>
         <div class="reg-list" id="inicio-recientes"></div>
       </div>
@@ -417,12 +423,18 @@
 
       <h2 class="section-title">Estimado según relleno recibido</h2>
       <div class="ficha">
-        <p class="note" style="margin-top:0;">Cuánto debería salir de cada sabor según el relleno que llegó de Control de Rellenos ese día (normalmente el de ayer a la tarde, para usar hoy a la mañana).</p>
-        <div class="filters">
-          <input type="date" id="estimado-fecha">
-          <button type="button" class="submit-btn" id="estimado-actualizar" style="width:auto; background:var(--panel-2); color:var(--text-dim); border:1px solid var(--border-strong); text-transform:none; font-family:var(--font-body); font-size:13px; padding:10px 16px;">Actualizar</button>
+        <div class="ficha-stub" id="estimado-header" style="cursor:pointer;">
+          <span class="stub-label">Cuánto debería salir hoy</span>
+          <span class="stub-value">Según lo recibido</span>
+          <button type="button" id="estimado-toggle-btn" class="hb-collapse-btn">Minimizar ▲</button>
         </div>
-        <div class="reg-list" id="estimado-lista"></div>
+        <div id="estimado-body">
+          <div class="filters">
+            <input type="date" id="estimado-fecha">
+            <button type="button" class="submit-btn" id="estimado-actualizar" style="width:auto; background:var(--panel-2); color:var(--text-dim); border:1px solid var(--border-strong); text-transform:none; font-family:var(--font-body); font-size:13px; padding:10px 16px;">Actualizar</button>
+          </div>
+          <div class="reg-list" id="estimado-lista"></div>
+        </div>
       </div>
 
       <h2 class="section-title">Horarios del día</h2>
@@ -643,6 +655,16 @@
     <!-- ============ AJUSTES ============ -->
     <section class="view" id="view-ajustes">
       <h2 class="section-title">Conexión con Control de Rellenos</h2>
+      <div id="rellenos-lock-screen" class="ficha">
+        <div class="ficha-stub">
+          <span class="stub-label">Acceso restringido</span>
+          <span class="stub-value">Solo dirección</span>
+        </div>
+        <p class="note" style="margin-top:0;">La configuración de la conexión y el mapeo con Control de Rellenos las maneja solo la dirección.</p>
+        <button type="button" class="submit-btn violet-btn" id="btn-desbloquear-rellenos" style="width:100%;">Desbloquear (PIN)</button>
+      </div>
+
+      <div id="rellenos-config-content" style="display:none;">
       <div class="ficha">
         <p class="note" style="margin-top:0;">Esta app lee (sin modificar nada) cuántos kg de relleno se recibieron en la otra app, para calcular el estimado de empanadas.</p>
         <button type="button" class="submit-btn teal-btn" id="btn-probar-rellenos" style="width:100%;">Probar conexión con Rellenos</button>
@@ -654,6 +676,7 @@
         <p class="note" style="margin-top:0;">Para cada sabor de acá, elegí qué relleno de la otra app le corresponde, y cuántos gramos de relleno lleva cada empanada. Ya dejé sugeridos los que coinciden por nombre — revisalos. Los que usan solo muzzarella quedan sin mapear (esa app no los registra en kg).</p>
         <div id="mapeo-rellenos-table" style="display:flex; flex-direction:column; gap:8px;"></div>
         <button type="button" class="submit-btn violet-btn" id="btn-guardar-mapeo" style="width:100%; margin-top:12px;">Guardar mapeo</button>
+      </div>
       </div>
 
       <h2 class="section-title">Informes descargables</h2>
@@ -1054,7 +1077,7 @@
     if(name === "produccion"){ refrescarSaborSelectProduccion(); renderCnAlert(); renderPendientes(); renderHorariosHoy(); renderProduccionRecientes(); renderProduccionStaging(); renderEstimadoRelleno(); }
     if(name === "muzzarella"){ renderMuzzarellaRecientes(); renderMuzzarellaStaging(); }
     if(name === "insumos"){ renderInsumosRecientes(); renderInsumosStaging(); }
-    if(name === "ajustes"){ renderHistorial(); renderMapeoRellenos(); }
+    if(name === "ajustes"){ renderHistorial(); mostrarPantallaRellenosConfig(); if(direccionDesbloqueada) renderMapeoRellenos(); }
     updateAlertDot();
   }
   document.querySelectorAll(".bottomnav button[data-view]").forEach(btn => {
@@ -1134,6 +1157,21 @@
       toast("PIN incorrecto.", true);
     }
   }
+
+  function mostrarPantallaRellenosConfig(){
+    const lock = document.getElementById("rellenos-lock-screen");
+    const content = document.getElementById("rellenos-config-content");
+    if(direccionDesbloqueada){
+      lock.style.display = "none";
+      content.style.display = "block";
+    } else {
+      lock.style.display = "block";
+      content.style.display = "none";
+    }
+  }
+  document.getElementById("btn-desbloquear-rellenos").addEventListener("click", () => {
+    requierePin(() => { mostrarPantallaRellenosConfig(); renderMapeoRellenos(); });
+  });
 
   function renderPedidoToggles(){
     const fecha = document.getElementById("pedido-fecha").value || todayStr();
@@ -1383,7 +1421,6 @@
       div.innerHTML = `
         <div class="reg-main">
           <div class="reg-sabor">${f.saborProd}</div>
-          <div class="reg-meta">Relleno: ${f.saborRelleno} · ${f.kg.toFixed(3)} kg recibidos</div>
         </div>
         <div class="reg-nums">
           <div class="kg">${f.unidadesEst} u.</div>
@@ -1441,6 +1478,24 @@
   document.getElementById("horarios-header").addEventListener("click", () => {
     horariosColapsado = !horariosColapsado;
     aplicarColapsoHorarios();
+  });
+
+  // ---------------- Colapsar / expandir Estimado ----------------
+  let estimadoColapsado = false;
+  function aplicarColapsoEstimado(){
+    const body = document.getElementById("estimado-body");
+    const btn = document.getElementById("estimado-toggle-btn");
+    body.classList.toggle("collapsed", estimadoColapsado);
+    btn.textContent = estimadoColapsado ? "Ampliar ▼" : "Minimizar ▲";
+  }
+  document.getElementById("estimado-toggle-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    estimadoColapsado = !estimadoColapsado;
+    aplicarColapsoEstimado();
+  });
+  document.getElementById("estimado-header").addEventListener("click", () => {
+    estimadoColapsado = !estimadoColapsado;
+    aplicarColapsoEstimado();
   });
 
   function renderHorariosHoy(){
@@ -2215,6 +2270,9 @@
       });
     }
 
+    // Comparativa: lo que debería haber salido (estimado de ayer) vs. lo real de hoy
+    renderComparativaEstimadoReal(hoy);
+
     // Últimos movimientos (todas las secciones)
     const cont = document.getElementById("inicio-recientes");
     const todos = [
@@ -2233,6 +2291,48 @@
           <div class="reg-meta">${fmtFecha(r.fecha)} · ${r.tipoMov}</div>
         </div>
         <div class="reg-nums"><div class="kg">${r.valor}</div></div>`;
+      cont.appendChild(div);
+    });
+  }
+
+  async function renderComparativaEstimadoReal(hoy){
+    const cont = document.getElementById("detalle-comparativa-list");
+    cont.innerHTML = `<div class="empty-state">Consultando Control de Rellenos...</div>`;
+    // El estimado de hoy sale del relleno que llegó AYER (así lo pediste: lo que
+    // se carga hoy en Rellenos, se usa mañana acá).
+    const resultado = await calcularEstimado(fechaAyer());
+    const realPorSabor = {};
+    state.produccion.filter(r => r.fecha === hoy).forEach(r => {
+      realPorSabor[r.sabor] = (realPorSabor[r.sabor] || 0) + Number(r.unidades || 0);
+    });
+
+    if(resultado.error){
+      cont.innerHTML = `<div class="empty-state">No se pudo traer el estimado de Control de Rellenos: ${escapeHtml(resultado.error)}</div>`;
+      return;
+    }
+
+    const sabores = new Set([...resultado.filas.map(f=>f.saborProd), ...Object.keys(realPorSabor)]);
+    if(sabores.size === 0){
+      cont.innerHTML = `<div class="empty-state">Todavía no hay estimado ni producción real para comparar.</div>`;
+      return;
+    }
+    cont.innerHTML = "";
+    [...sabores].sort().forEach(sabor => {
+      const est = resultado.filas.find(f => f.saborProd === sabor);
+      const estimadoU = est ? est.unidadesEst : null;
+      const realU = realPorSabor[sabor] || 0;
+      const diff = estimadoU != null ? (realU - estimadoU) : null;
+      const div = document.createElement("div");
+      div.className = "reg-row";
+      div.innerHTML = `
+        <div class="reg-main">
+          <div class="reg-sabor">${sabor}</div>
+          <div class="reg-meta">Debía salir: ${estimadoU != null ? estimadoU + " u." : "sin estimado"}</div>
+        </div>
+        <div class="reg-nums">
+          <div class="kg">${realU} u.</div>
+          ${diff != null ? `<div class="bateas" style="color:${Math.abs(diff) <= 5 ? 'var(--success)' : 'var(--danger)'};">${diff >= 0 ? "+" : ""}${diff} u.</div>` : ""}
+        </div>`;
       cont.appendChild(div);
     });
   }
