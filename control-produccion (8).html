@@ -1,0 +1,2703 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Control de Producción Diaria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #1B1512;
+    --panel: #221C17;
+    --panel-2: #2A231C;
+    --border: rgba(243,236,223,0.13);
+    --border-strong: rgba(243,236,223,0.24);
+    --text: #F3ECDF;
+    --text-dim: #B7AB98;
+    --text-faint: #8A7F6E;
+    --amber: #E7A33E;
+    --amber-dark: #B97D22;
+    --amber-ink: #241A0C;
+    --teal: #4A9C8B;
+    --teal-dark: #326B5F;
+    --teal-ink: #0E211C;
+    --violet: #A98BD8;
+    --violet-dark: #7259A6;
+    --violet-ink: #1D1730;
+    --cyan: #7EC8D8;
+    --cyan-dark: #4F8C9C;
+    --cyan-ink: #0E2126;
+    --danger: #D2593F;
+    --danger-bg: rgba(210,89,63,0.16);
+    --success: #6BB076;
+    --success-bg: rgba(107,176,118,0.16);
+    --radius: 14px;
+    --font-display: 'Oswald', sans-serif;
+    --font-body: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-tap-highlight-color:transparent; min-height:100vh; }
+  ::selection{ background: var(--amber); color:var(--amber-ink); }
+  #app{ max-width:960px; margin:0 auto; padding-bottom:100px; min-height:100vh; }
+
+  #storage-banner{
+    display:none; background:var(--danger-bg); border-bottom:1px solid rgba(210,89,63,0.4); color:var(--danger);
+    padding:12px 18px; font-size:13px; line-height:1.5; position:sticky; top:0; z-index:40;
+  }
+  #storage-banner.show{ display:block; }
+  #storage-banner strong{ display:block; margin-bottom:2px; font-family:var(--font-display); letter-spacing:0.02em; }
+  #config-box{ margin-top:10px; }
+  #config-api-input{ font-family:var(--font-mono); font-size:12px; padding:10px; border-radius:8px; border:1px solid var(--border-strong); background:var(--panel-2); color:var(--text); }
+  #config-api-result{ font-family:var(--font-mono); font-size:11.5px; white-space:pre-wrap; }
+
+  .topbar{ padding:22px 20px 16px; position:sticky; top:0; z-index:20; background:linear-gradient(180deg, var(--bg) 70%, rgba(27,21,18,0)); }
+  .topbar .eyebrow{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); display:flex; align-items:center; gap:8px; }
+  .topbar .eyebrow .dot{ width:6px;height:6px;border-radius:50%; background:var(--success); box-shadow:0 0 0 3px rgba(107,176,118,0.18); }
+  .topbar .eyebrow .dot.off{ background:var(--danger); box-shadow:0 0 0 3px rgba(210,89,63,0.18); }
+  .topbar h1{ font-family:var(--font-display); font-weight:600; font-size:25px; letter-spacing:0.01em; margin:4px 0 0; }
+  .topbar h1 .word-diaria{ color:var(--amber); }
+
+  main{ padding:4px 18px 20px; }
+  .view{ display:none; animation: fadeIn .25s ease; }
+  .view.active{ display:block; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  h2.section-title{
+    font-family:var(--font-display); font-weight:500; font-size:15px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--text-dim); margin:26px 0 12px; display:flex; align-items:center; gap:10px;
+  }
+  h2.section-title::after{ content:""; flex:1; height:1px; background:var(--border); }
+  h2.section-title:first-child{ margin-top:6px; }
+
+  .ficha{ position:relative; background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius); padding:18px 18px 16px; overflow:visible; }
+  .ficha::before{ content:""; position:absolute; top:-1px; left:22px; width:14px; height:14px; background:var(--bg); border:1px solid var(--border); border-radius:50%; }
+  .ficha .ficha-stub{ display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; margin-bottom:12px; border-bottom:1px dashed var(--border-strong); }
+  .ficha .ficha-stub .stub-label{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-faint); }
+  .ficha .ficha-stub .stub-value{ font-family:var(--font-display); font-size:17px; font-weight:600; }
+
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .stat-card{ padding-top:20px; }
+  .stat-card .num{ font-family:var(--font-mono); font-size:26px; font-weight:600; }
+  .stat-card .label{ font-size:12px; color:var(--text-dim); margin-top:2px; }
+  .stat-card.amber .num{ color:var(--amber); }
+  .stat-card.teal .num{ color:var(--teal); }
+  .stat-card.violet .num{ color:var(--violet); }
+  .stat-card.cyan .num{ color:var(--cyan); }
+  .stat-card.danger .num{ color:var(--danger); }
+
+  .cta-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+  .cta-card{
+    border-radius:var(--radius); padding:18px 14px; text-align:left; border:1px solid var(--border);
+    cursor:pointer; font-family:inherit; display:flex; flex-direction:column; gap:8px; transition:transform .12s ease;
+  }
+  .cta-card:active{ transform:scale(0.98); }
+  .cta-card.c-pedido{ background:linear-gradient(155deg, var(--violet) 0%, var(--violet-dark) 100%); color:var(--violet-ink); }
+  .cta-card.c-produccion{ background:linear-gradient(155deg, var(--amber) 0%, var(--amber-dark) 100%); color:var(--amber-ink); }
+  .cta-card.c-muzzarella{ background:linear-gradient(155deg, var(--cyan) 0%, var(--cyan-dark) 100%); color:var(--cyan-ink); }
+  .cta-card.c-insumos{ background:linear-gradient(155deg, var(--teal) 0%, var(--teal-dark) 100%); color:var(--teal-ink); }
+  .cta-card .cta-icon{ width:24px; height:24px; }
+  .cta-card .cta-title{ font-family:var(--font-display); font-size:16px; font-weight:600; }
+  .cta-card .cta-sub{ font-size:11.5px; opacity:0.85; line-height:1.3; }
+
+  /* ---------- Alerta de Chapas Negativas (urgentes) ---------- */
+  .cn-alert{ border:1.5px solid rgba(210,89,63,0.55); background:linear-gradient(155deg, rgba(210,89,63,0.14), var(--panel-2) 60%); }
+  .cn-alert .ficha-stub .stub-value{ color:var(--danger); }
+  .cn-list{ display:flex; flex-direction:column; gap:6px; }
+  .cn-item{ display:flex; justify-content:space-between; align-items:center; background:var(--panel); border-radius:8px; padding:9px 12px; }
+  .cn-item .cn-sabor{ font-weight:600; font-size:13.5px; }
+  .cn-item .cn-cant{ font-family:var(--font-mono); color:var(--danger); font-weight:700; font-size:14px; }
+
+  /* ---------- Forms ---------- */
+  form.entry-form{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:18px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  form.entry-form .field{ display:flex; flex-direction:column; gap:6px; }
+  form.entry-form .field.full{ grid-column:1 / -1; }
+  form.entry-form label{ font-size:12px; letter-spacing:0.04em; text-transform:uppercase; color:var(--text-dim); font-weight:600; }
+  input, select, textarea{
+    font-family:var(--font-body); font-size:16px; background:var(--panel-2); border:1px solid var(--border-strong);
+    color:var(--text); border-radius:10px; padding:13px 12px; width:100%; outline:none;
+  }
+  input:focus, select:focus{ border-color:var(--amber); box-shadow:0 0 0 3px rgba(231,163,62,0.18); }
+  .view-pedido input:focus, .view-pedido select:focus{ border-color:var(--violet); box-shadow:0 0 0 3px rgba(169,139,216,0.18); }
+  .view-muzzarella input:focus, .view-muzzarella select:focus{ border-color:var(--cyan); box-shadow:0 0 0 3px rgba(126,200,216,0.18); }
+  .view-insumos input:focus, .view-insumos select:focus{ border-color:var(--teal); box-shadow:0 0 0 3px rgba(74,156,139,0.18); }
+  input.cn-input{ border-color:rgba(210,89,63,0.5); }
+  select{ appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23B7AB98'%3E%3Cpath d='M5.5 7.5l4.5 4.5 4.5-4.5' stroke='%23B7AB98' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:34px;}
+
+  .submit-btn{
+    grid-column:1/-1; border:none; border-radius:10px; padding:16px; font-family:var(--font-display); font-size:16px;
+    font-weight:600; letter-spacing:0.03em; text-transform:uppercase; cursor:pointer; margin-top:4px; transition:filter .12s ease;
+  }
+  .submit-btn:active{ transform:scale(0.99); }
+  .submit-btn.amber-btn{ background:var(--amber); color:var(--amber-ink); }
+  .submit-btn.teal-btn{ background:var(--teal); color:var(--teal-ink); }
+  .submit-btn.violet-btn{ background:var(--violet); color:var(--violet-ink); }
+  .submit-btn.cyan-btn{ background:var(--cyan); color:var(--cyan-ink); }
+  .submit-btn:hover{ filter:brightness(1.06); }
+  .submit-btn:disabled{ opacity:0.6; }
+
+  .horario-bloque{ border-top:1px dashed var(--border-strong); padding-top:14px; margin-top:14px; }
+  .horario-bloque:first-of-type{ border-top:none; margin-top:0; padding-top:0; }
+  .hb-titulo{ font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px; }
+  .hb-fila{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .hb-punto{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+  .hb-label{ font-size:10px; text-transform:uppercase; color:var(--text-faint); letter-spacing:0.04em; }
+  .hb-valor{ font-family:var(--font-mono); font-size:18px; font-weight:600; }
+  .hb-btn{
+    width:100%; border:1px solid var(--amber); background:none; color:var(--amber); border-radius:8px;
+    padding:8px; font-family:var(--font-display); font-size:11.5px; letter-spacing:0.03em; text-transform:uppercase; cursor:pointer;
+  }
+  .hb-btn:active{ background:rgba(231,163,62,0.18); }
+  .hb-btn:disabled{ opacity:0.4; border-color:var(--border-strong); color:var(--text-faint); cursor:default; }
+  .hb-duracion{ margin-top:8px; font-family:var(--font-mono); font-size:12.5px; color:var(--text-dim); }
+  .hb-collapse-btn{
+    background:none; border:1px solid var(--border-strong); color:var(--text-dim); border-radius:8px;
+    padding:6px 12px; font-family:var(--font-body); font-size:11.5px; cursor:pointer; margin-left:auto;
+  }
+  .hb-collapse-btn:active{ background:var(--panel); }
+  #horarios-body.collapsed{ display:none; }
+  #estimado-body.collapsed{ display:none; }
+  #estimado-header{ justify-content:flex-start; gap:10px; flex-wrap:wrap; }
+  #estimado-header .stub-value{ margin-right:auto; }
+  #horarios-header{ justify-content:flex-start; gap:10px; flex-wrap:wrap; }
+  #horarios-header .stub-value{ margin-right:auto; }
+  .total-box{
+    grid-column:1/-1; background:var(--panel-2); border:1px dashed var(--border-strong); border-radius:10px;
+    padding:14px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
+  }
+  .total-box .tb-item{ display:flex; flex-direction:column; gap:2px; }
+  .total-box .tb-label{ font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); }
+  .total-box .tb-value{ font-family:var(--font-mono); font-size:19px; font-weight:600; }
+
+  .editing-banner{
+    display:none; align-items:center; justify-content:space-between; gap:10px;
+    background:rgba(231,163,62,0.14); border:1px solid rgba(231,163,62,0.4); color:var(--amber);
+    border-radius:10px; padding:10px 14px; font-size:13px; grid-column:1/-1; margin-bottom:-4px;
+  }
+  .editing-banner.show{ display:flex; }
+  .editing-banner button{ background:none; border:1px solid var(--amber); color:var(--amber); border-radius:8px; padding:6px 12px; font-size:12px; cursor:pointer; width:auto; }
+
+  /* ---------- Listas de registro ---------- */
+  .reg-list{ display:flex; flex-direction:column; gap:10px; margin-top:4px; }
+  .reg-row{ display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+  .reg-row.cn-row{ border-color:rgba(210,89,63,0.5); background:linear-gradient(155deg, rgba(210,89,63,0.10), var(--panel) 60%); }
+  .reg-row .reg-main{ display:flex; flex-direction:column; gap:2px; }
+  .reg-row .reg-sabor{ font-weight:600; font-size:14.5px; }
+  .reg-row .reg-meta{ font-size:12px; color:var(--text-faint); font-family:var(--font-mono); }
+  .reg-row .reg-nums{ text-align:right; font-family:var(--font-mono); }
+  .reg-row .reg-nums .kg{ font-size:15px; font-weight:600; }
+  .reg-row .reg-nums .bateas{ font-size:11.5px; color:var(--text-dim); }
+  .reg-row .reg-nums .cn-badge{ color:var(--danger); font-weight:700; }
+  .reg-row .reg-actions{ display:flex; gap:6px; width:100%; justify-content:flex-end; order:3; margin-top:2px; }
+  .reg-row .reg-action-btn{ background:none; border:1px solid var(--border-strong); color:var(--text-dim); font-family:var(--font-body); font-size:11.5px; padding:6px 12px; border-radius:8px; cursor:pointer; }
+  .reg-row .reg-action-btn.edit-btn:active{ background:rgba(231,163,62,0.18); border-color:var(--amber); color:var(--amber); }
+  .reg-row .reg-action-btn.delete-btn{ color:var(--danger); border-color:rgba(210,89,63,0.35); }
+  .reg-row .reg-action-btn.delete-btn:active{ background:var(--danger-bg); }
+
+  .empty-state{ padding:26px 18px; text-align:center; border:1px dashed var(--border-strong); border-radius:var(--radius); color:var(--text-dim); font-size:13.5px; }
+
+  .filters{ display:flex; gap:10px; margin-bottom:14px; }
+  .filters select{ flex:1; }
+
+  /* ---------- Pedido: toggles de sabores ---------- */
+  .sabor-toggle-list{ display:flex; flex-direction:column; gap:8px; }
+  .sabor-toggle-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px; flex-wrap:wrap; }
+  .mapeo-row{ display:flex; flex-direction:column; gap:8px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+  .mapeo-row .mr-nombre{ font-weight:600; font-size:14px; }
+  .mapeo-row .mr-campos{ display:grid; grid-template-columns:1fr 110px; gap:8px; }
+  .mapeo-row select, .mapeo-row input{ padding:9px 10px; font-size:13px; }
+  .mapeo-row .mr-gramos-label{ font-size:9.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:3px; display:block; }
+  .sabor-toggle-row.off{ opacity:0.55; }
+  .sabor-toggle-row .stn-name{ font-weight:600; font-size:14px; }
+  .sabor-toggle-row .stn-right{ display:flex; align-items:center; gap:10px; }
+  .stn-cantidad{ display:flex; align-items:center; gap:6px; }
+  .stn-cantidad label{ font-size:10px; text-transform:uppercase; color:var(--text-faint); letter-spacing:0.04em; }
+  .stn-cantidad input{
+    width:64px; padding:8px 6px; font-size:13px; text-align:center; font-family:var(--font-mono);
+    background:var(--panel-2); border:1px solid var(--border-strong); border-radius:8px; color:var(--text);
+  }
+  .stn-cantidad input:focus{ border-color:var(--violet); }
+  .stn-cn label{ color:var(--danger); }
+  .stn-cn input{ border-color:rgba(210,89,63,0.5); }
+  .stn-cn input:focus{ border-color:var(--danger); }
+  .switch{ position:relative; display:inline-block; width:46px; height:26px; flex-shrink:0; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch .slider{ position:absolute; cursor:pointer; inset:0; background:var(--panel-2); border:1px solid var(--border-strong); border-radius:20px; transition:.15s; }
+  .switch .slider::before{ content:""; position:absolute; height:18px; width:18px; left:3px; top:3px; background:var(--text-faint); border-radius:50%; transition:.15s; }
+  .switch input:checked + .slider{ background:rgba(107,176,118,0.25); border-color:var(--success); }
+  .switch input:checked + .slider::before{ transform:translateX(20px); background:var(--success); }
+
+  /* ---------- Pendientes (Producción) ---------- */
+  .pend-list{ display:flex; flex-wrap:wrap; gap:8px; }
+  .pend-chip{ background:var(--panel); border:1px solid var(--border-strong); border-radius:20px; padding:7px 14px; font-size:12.5px; color:var(--text-dim); font-family:inherit; }
+  .pend-chip-click{ cursor:pointer; }
+  .pend-chip-click:active{ background:rgba(231,163,62,0.18); border-color:var(--amber); color:var(--amber); }
+
+  .note{ font-size:12.5px; color:var(--text-faint); line-height:1.5; margin-top:14px; }
+  .note strong{ color:var(--text-dim); }
+  .save-bar{ position:sticky; bottom:88px; margin-top:16px; }
+
+  .historial-list{ display:flex; flex-direction:column; gap:8px; max-height:420px; overflow-y:auto; }
+  .historial-item{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-size:12.5px; }
+  .historial-item .h-top{ display:flex; justify-content:space-between; gap:8px; font-family:var(--font-mono); font-size:11px; color:var(--text-faint); }
+  .historial-item .h-accion{ font-weight:600; letter-spacing:0.02em; }
+  .historial-item .h-accion.crear{ color:var(--success); }
+  .historial-item .h-accion.editar{ color:var(--amber); }
+  .historial-item .h-accion.borrar{ color:var(--danger); }
+  .historial-item .h-resumen{ margin-top:4px; color:var(--text); }
+
+  .bottomnav{
+    position:fixed; bottom:0; left:0; right:0; background:rgba(34,28,23,0.94); backdrop-filter:blur(10px);
+    border-top:1px solid var(--border); display:flex; justify-content:space-around; padding:7px 2px calc(7px + env(safe-area-inset-bottom)); z-index:30;
+  }
+  .bottomnav button{
+    background:none; border:none; color:var(--text-faint); font-family:var(--font-body); font-size:9.5px;
+    display:flex; flex-direction:column; align-items:center; gap:3px; padding:5px 4px; cursor:pointer; position:relative; flex:1;
+  }
+  .bottomnav button svg{ width:20px; height:20px; }
+  .bottomnav button.active{ color:var(--text); }
+  .bottomnav button.active.nav-pedido{ color:var(--violet); }
+  .bottomnav button.active.nav-produccion{ color:var(--amber); }
+  .bottomnav button.active.nav-muzzarella{ color:var(--cyan); }
+  .bottomnav button.active.nav-insumos{ color:var(--teal); }
+  .bottomnav button .nav-dot{ position:absolute; top:1px; right:20%; width:7px; height:7px; border-radius:50%; background:var(--danger); display:none; }
+  .bottomnav button .nav-dot.show{ display:block; }
+
+  #toast{
+    position:fixed; left:50%; bottom:96px; transform:translate(-50%, 20px); background:var(--panel-2); border:1px solid var(--border-strong);
+    color:var(--text); padding:12px 18px; border-radius:10px; font-size:14px; opacity:0; pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease; z-index:50; max-width:80%; text-align:center; box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  }
+  #toast.show{ opacity:1; transform:translate(-50%, 0); }
+  #toast.err{ border-color:rgba(210,89,63,0.5); color:var(--danger); }
+
+  @media (max-width:460px){
+    .cta-row{ grid-template-columns:1fr; }
+    form.entry-form{ grid-template-columns:1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="storage-banner">
+    <strong>El guardado compartido está fallando</strong>
+    Este archivo tiene que abrirse conectado a un backend de Google Sheets. Detalle técnico: <span class="banner-detail">—</span>
+    <div id="config-box">
+      <p style="margin:8px 0;">Pegá acá la URL de tu Apps Script y probala:</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="text" id="config-api-input" placeholder="https://script.google.com/macros/s/AKfycb.../exec" style="flex:1; min-width:220px;">
+        <button type="button" id="config-api-test" class="submit-btn" style="width:auto;">Probar y usar</button>
+      </div>
+      <div id="config-api-result" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div class="eyebrow"><span class="dot" id="status-dot"></span> <span id="status-text">Datos compartidos entre Pedido, Producción, Muzzarella e Insumos</span></div>
+    <h1>Producción <span class="word-diaria">Diaria</span></h1>
+  </div>
+
+  <main>
+
+    <!-- ============ INICIO ============ -->
+    <section class="view active" id="view-inicio">
+      <h2 class="section-title">Hoy</h2>
+      <div class="ficha stat-card amber" style="padding-top:24px; text-align:center;">
+        <div class="num" id="stat-total-hoy" style="font-size:40px;">—</div>
+        <div class="label" style="font-size:13px;">Unidades producidas hoy</div>
+      </div>
+
+      <h2 class="section-title">Registrar</h2>
+      <div class="cta-row">
+        <button class="cta-card c-pedido" data-goto="pedido">
+          <svg class="cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a2 2 0 0 1 2-2z"/><path d="M9 12h6M9 16h6"/></svg>
+          <div class="cta-title">Pedido</div>
+          <div class="cta-sub">Elegir qué sabores se hacen hoy</div>
+        </button>
+        <button class="cta-card c-produccion" data-goto="produccion">
+          <svg class="cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="9"/></svg>
+          <div class="cta-title">Producción</div>
+          <div class="cta-sub">Cargar lo que se hizo de cada sabor</div>
+        </button>
+        <button class="cta-card c-muzzarella" data-goto="muzzarella">
+          <svg class="cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="14" cy="9" r="1"/><circle cx="12" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
+          <div class="cta-title">Muzzarella</div>
+          <div class="cta-sub">Kg usados por sabor</div>
+        </button>
+        <button class="cta-card c-insumos" data-goto="insumos">
+          <svg class="cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6a3 3 0 0 0 3 3v9M6 3v6M9 3v6M12 21v-6.5A3.5 3.5 0 0 1 15.5 11h0A3.5 3.5 0 0 1 19 14.5V21"/></svg>
+          <div class="cta-title">Insumos</div>
+          <div class="cta-sub">Otros ingredientes usados</div>
+        </button>
+      </div>
+
+      <h2 class="section-title">Detalle completo</h2>
+      <div id="detalle-lock-screen" class="ficha">
+        <div class="ficha-stub">
+          <span class="stub-label">Acceso restringido</span>
+          <span class="stub-value">Solo dirección</span>
+        </div>
+        <p class="note" style="margin-top:0;">Acá vas a ver cuánto tardó cada sabor, quién lo hizo, el desperdicio y los horarios del día. Ingresá el PIN para entrar.</p>
+        <div class="field full">
+          <label for="detalle-pin-input">PIN</label>
+          <input type="password" id="detalle-pin-input" inputmode="numeric" placeholder="••••">
+        </div>
+        <button type="button" class="submit-btn violet-btn" id="detalle-pin-btn" style="width:100%;">Ver detalle</button>
+        <div id="detalle-pin-error" class="note" style="color:var(--danger); display:none; margin-top:10px;">PIN incorrecto.</div>
+      </div>
+
+      <div id="detalle-content" style="display:none;">
+        <div class="stat-grid" style="margin-bottom:20px;">
+          <div class="ficha stat-card danger">
+            <div class="num" id="stat-cn-hoy">—</div>
+            <div class="label">Chapas negativas urgentes</div>
+          </div>
+          <div class="ficha stat-card cyan">
+            <div class="num" id="stat-muzz-hoy">—</div>
+            <div class="label">Kg de muzzarella hoy</div>
+          </div>
+          <div class="ficha stat-card violet" style="grid-column:1/-1;">
+            <div class="num" id="stat-pend-hoy">—</div>
+            <div class="label">Sabores pendientes hoy</div>
+          </div>
+        </div>
+
+        <h2 class="section-title">Horarios de hoy</h2>
+        <div class="ficha" id="detalle-horarios-card"></div>
+
+        <h2 class="section-title">Producción de hoy, sabor por sabor</h2>
+        <div class="reg-list" id="detalle-produccion-list"></div>
+
+        <h2 class="section-title">Comparativa: estimado vs. real (hoy)</h2>
+        <div class="reg-list" id="detalle-comparativa-list"></div>
+
+        <h2 class="section-title">Historial por día</h2>
+        <div class="ficha">
+          <p class="note" style="margin-top:0;">Elegí un día anterior para ver rápido cómo vino.</p>
+          <div class="filters">
+            <input type="date" id="historial-fecha">
+            <button type="button" class="submit-btn violet-btn" id="historial-ver" style="width:auto; padding:10px 16px;">Ver</button>
+          </div>
+          <div class="stat-grid" style="margin-bottom:14px;">
+            <div class="ficha stat-card amber">
+              <div class="num" id="historial-total-unidades">—</div>
+              <div class="label">Unidades producidas</div>
+            </div>
+            <div class="ficha stat-card cyan">
+              <div class="num" id="historial-total-muzz">—</div>
+              <div class="label">Kg de muzzarella</div>
+            </div>
+          </div>
+          <div class="reg-list" id="historial-lista"></div>
+        </div>
+
+        <h2 class="section-title">Últimos movimientos</h2>
+        <div class="reg-list" id="inicio-recientes"></div>
+      </div>
+    </section>
+
+    <!-- ============ PEDIDO ============ -->
+    <section class="view view-pedido" id="view-pedido">
+      <div id="pedido-lock-screen" class="ficha">
+        <div class="ficha-stub">
+          <span class="stub-label">Acceso restringido</span>
+          <span class="stub-value">Solo dirección</span>
+        </div>
+        <p class="note" style="margin-top:0;">Esta pestaña la maneja solo la dirección. Ingresá el PIN para entrar.</p>
+        <div class="field full">
+          <label for="pedido-pin-input">PIN</label>
+          <input type="password" id="pedido-pin-input" inputmode="numeric" placeholder="••••">
+        </div>
+        <button type="button" class="submit-btn violet-btn" id="pedido-pin-btn" style="width:100%;">Desbloquear</button>
+        <div id="pedido-pin-error" class="note" style="color:var(--danger); display:none; margin-top:10px;">PIN incorrecto.</div>
+      </div>
+
+      <div id="pedido-content" style="display:none;">
+        <h2 class="section-title">Qué se hace hoy</h2>
+        <div class="field" style="margin-bottom:14px;">
+          <label for="pedido-fecha">Fecha</label>
+          <input type="date" id="pedido-fecha">
+        </div>
+        <p class="note" style="margin-top:0; margin-bottom:14px;">Apagá el sabor que NO se va a hacer ese día — en Producción, Muzzarella e Insumos solo van a poder elegir los que estén prendidos acá. En los 5 sabores con muzzarella, además podés poner la cantidad pedida.</p>
+        <div class="sabor-toggle-list" id="pedido-toggle-list"></div>
+        <button class="submit-btn violet-btn save-bar" id="btn-guardar-pedido" style="width:100%;">Guardar</button>
+      </div>
+    </section>
+
+    <!-- ============ PRODUCCION ============ -->
+    <section class="view view-produccion" id="view-produccion">
+      <h2 class="section-title">Chapas negativas urgentes hoy</h2>
+      <div class="ficha cn-alert" id="cn-alert-card">
+        <div class="ficha-stub">
+          <span class="stub-label">Prioridad</span>
+          <span class="stub-value">Sabores con C.N.</span>
+        </div>
+        <div class="cn-list" id="cn-alert-list"></div>
+      </div>
+
+      <h2 class="section-title">Sabores pendientes hoy</h2>
+      <div class="pend-list" id="produccion-pendientes"></div>
+
+      <h2 class="section-title">Estimado vs. lo que se va produciendo</h2>
+      <div class="ficha">
+        <div class="ficha-stub" id="estimado-header" style="cursor:pointer;">
+          <span class="stub-label">Comparación en vivo</span>
+          <span class="stub-value">Estimado vs. real</span>
+          <button type="button" id="estimado-toggle-btn" class="hb-collapse-btn">Minimizar ▲</button>
+        </div>
+        <div id="estimado-body">
+          <div class="filters">
+            <input type="date" id="estimado-fecha">
+            <button type="button" class="submit-btn" id="estimado-actualizar" style="width:auto; background:var(--panel-2); color:var(--text-dim); border:1px solid var(--border-strong); text-transform:none; font-family:var(--font-body); font-size:13px; padding:10px 16px;">Actualizar</button>
+          </div>
+          <div class="reg-list" id="estimado-lista"></div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Horarios del día</h2>
+      <div class="ficha">
+        <div class="ficha-stub" id="horarios-header" style="cursor:pointer;">
+          <span class="stub-label">Fecha</span>
+          <span class="stub-value" id="horarios-fecha-label">—</span>
+          <button type="button" id="horarios-toggle-btn" class="hb-collapse-btn">Minimizar ▲</button>
+        </div>
+        <div id="horarios-body">
+        <p class="note" style="margin-top:0;">Tocá "Marcar ahora" en el momento en que arranca cada bloque, y de nuevo cuando termina — se guarda solo y calcula la duración.</p>
+        <div class="horario-bloque" data-bloque="jornada">
+          <div class="hb-titulo">Jornada</div>
+          <div class="hb-fila">
+            <div class="hb-punto"><span class="hb-label">Inicio</span><span class="hb-valor" id="horario-jornada-inicio-valor">—</span><button type="button" class="hb-btn" data-campo="inicioDia">Marcar ahora</button></div>
+            <div class="hb-punto"><span class="hb-label">Fin</span><span class="hb-valor" id="horario-jornada-fin-valor">—</span><button type="button" class="hb-btn" data-campo="finDia">Marcar ahora</button></div>
+          </div>
+          <div class="hb-duracion" id="horario-jornada-duracion"></div>
+        </div>
+        <div class="horario-bloque" data-bloque="desayuno">
+          <div class="hb-titulo">Desayuno</div>
+          <div class="hb-fila">
+            <div class="hb-punto"><span class="hb-label">Inicio</span><span class="hb-valor" id="horario-desayuno-inicio-valor">—</span><button type="button" class="hb-btn" data-campo="desayunoInicio">Marcar ahora</button></div>
+            <div class="hb-punto"><span class="hb-label">Fin</span><span class="hb-valor" id="horario-desayuno-fin-valor">—</span><button type="button" class="hb-btn" data-campo="desayunoFin">Marcar ahora</button></div>
+          </div>
+          <div class="hb-duracion" id="horario-desayuno-duracion"></div>
+        </div>
+        <div class="horario-bloque" data-bloque="almuerzo">
+          <div class="hb-titulo">Almuerzo</div>
+          <div class="hb-fila">
+            <div class="hb-punto"><span class="hb-label">Inicio</span><span class="hb-valor" id="horario-almuerzo-inicio-valor">—</span><button type="button" class="hb-btn" data-campo="almuerzoInicio">Marcar ahora</button></div>
+            <div class="hb-punto"><span class="hb-label">Fin</span><span class="hb-valor" id="horario-almuerzo-fin-valor">—</span><button type="button" class="hb-btn" data-campo="almuerzoFin">Marcar ahora</button></div>
+          </div>
+          <div class="hb-duracion" id="horario-almuerzo-duracion"></div>
+        </div>
+        <p class="note" id="horarios-editar-toggle" style="cursor:pointer; text-decoration:underline; margin-top:14px;">¿Te equivocaste? Editar los horarios a mano</p>
+        <div id="horarios-manual" style="display:none; margin-top:10px;">
+          <div class="total-box" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="field"><label for="horario-inicio-dia">Inicio de día</label><input type="time" id="horario-inicio-dia"></div>
+            <div class="field"><label for="horario-fin-dia">Fin de día</label><input type="time" id="horario-fin-dia"></div>
+            <div class="field"><label for="horario-desayuno-inicio">Desayuno inicio</label><input type="time" id="horario-desayuno-inicio"></div>
+            <div class="field"><label for="horario-desayuno-fin">Desayuno fin</label><input type="time" id="horario-desayuno-fin"></div>
+            <div class="field"><label for="horario-almuerzo-inicio">Almuerzo inicio</label><input type="time" id="horario-almuerzo-inicio"></div>
+            <div class="field"><label for="horario-almuerzo-fin">Almuerzo fin</label><input type="time" id="horario-almuerzo-fin"></div>
+          </div>
+          <button type="button" class="submit-btn amber-btn" id="horarios-guardar-manual" style="width:100%; margin-top:10px;">Guardar horarios manuales</button>
+        </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Cargar producción</h2>
+      <form class="entry-form" id="form-produccion">
+        <div class="editing-banner" id="produccion-editing-banner">
+          <span>Editando un registro cargado antes</span>
+          <button type="button" id="produccion-cancel-edit">Cancelar edición</button>
+        </div>
+        <div class="field">
+          <label for="produccion-fecha">Fecha</label>
+          <input type="date" id="produccion-fecha">
+        </div>
+        <div class="field">
+          <label for="produccion-sabor">Sabor</label>
+          <select id="produccion-sabor" required></select>
+        </div>
+        <div class="field">
+          <label for="produccion-chapas">Chapas elaboradas</label>
+          <input type="number" id="produccion-chapas" min="0" step="1" value="0">
+        </div>
+        <div class="field">
+          <label for="produccion-ui">U.I. (incluidas de ayer)</label>
+          <input type="number" id="produccion-ui" min="0" step="1" value="0">
+        </div>
+        <div class="field">
+          <label for="produccion-ue">U.E. (de más, van a mañana)</label>
+          <input type="number" id="produccion-ue" min="0" step="1" value="0">
+        </div>
+        <div class="field">
+          <label for="produccion-cn">C.N. (chapas negativas)</label>
+          <input type="number" id="produccion-cn" min="0" step="1" value="0" class="cn-input">
+        </div>
+        <div class="field">
+          <label for="produccion-tapas">Tapas</label>
+          <input type="text" id="produccion-tapas" placeholder="Nombre">
+        </div>
+        <div class="field">
+          <label for="produccion-relleno">Relleno</label>
+          <input type="text" id="produccion-relleno" placeholder="Nombre">
+        </div>
+        <div class="field">
+          <label for="produccion-recibio">Recibió</label>
+          <input type="text" id="produccion-recibio" placeholder="Nombre">
+        </div>
+        <div class="field">
+          <label for="produccion-comodin">Comodín</label>
+          <input type="text" id="produccion-comodin" placeholder="Nombre">
+        </div>
+        <div class="field">
+          <label for="produccion-inicio">Inicio</label>
+          <input type="time" id="produccion-inicio">
+        </div>
+        <div class="field">
+          <label for="produccion-fin">Fin</label>
+          <input type="time" id="produccion-fin">
+        </div>
+        <div class="field">
+          <label for="produccion-desperdicio">Desperdicio (kg)</label>
+          <input type="number" id="produccion-desperdicio" min="0" step="0.001" value="0" placeholder="Ej: 4.500">
+        </div>
+        <div class="field">
+          <label for="produccion-responsable">Responsable de la carga *</label>
+          <input type="text" id="produccion-responsable" placeholder="Nombre" required>
+        </div>
+        <div class="total-box">
+          <div class="tb-item"><span class="tb-label">Unidades (chapas × unid. − U.I. + U.E. − C.N.)</span><span class="tb-value" id="produccion-total-preview">0</span></div>
+          <div class="tb-item"><span class="tb-label">Duración</span><span class="tb-value" id="produccion-duracion-preview">— min</span></div>
+        </div>
+        <div class="field full">
+          <label for="produccion-obs">Observaciones</label>
+          <input type="text" id="produccion-obs" placeholder="Opcional">
+        </div>
+        <button type="submit" class="submit-btn amber-btn">Agregar a la lista</button>
+      </form>
+
+      <h2 class="section-title">Por registrar</h2>
+      <div id="produccion-staging-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+      <button type="button" class="submit-btn amber-btn" id="produccion-btn-registrar-todo" style="width:100%; display:none; margin-top:10px;">Registrar todo</button>
+
+      <h2 class="section-title">Registros</h2>
+      <div class="filters">
+        <input type="date" id="produccion-filtro-fecha">
+        <button type="button" class="submit-btn" id="produccion-filtro-hoy" style="width:auto; background:var(--panel-2); color:var(--text-dim); border:1px solid var(--border-strong); text-transform:none; font-family:var(--font-body); font-size:13px; padding:10px 16px;">Hoy</button>
+      </div>
+      <div class="reg-list" id="produccion-recientes"></div>
+    </section>
+
+    <!-- ============ MUZZARELLA ============ -->
+    <section class="view view-muzzarella" id="view-muzzarella">
+      <h2 class="section-title">Cargar muzzarella usada</h2>
+      <form class="entry-form" id="form-muzzarella">
+        <div class="editing-banner" id="muzzarella-editing-banner">
+          <span>Editando un registro cargado antes</span>
+          <button type="button" id="muzzarella-cancel-edit">Cancelar edición</button>
+        </div>
+        <div class="field">
+          <label for="muzzarella-fecha">Fecha</label>
+          <input type="date" id="muzzarella-fecha">
+        </div>
+        <div class="field">
+          <label for="muzzarella-sabor">Sabor</label>
+          <select id="muzzarella-sabor" required></select>
+        </div>
+        <div class="field full">
+          <label for="muzzarella-kg">Kg usados</label>
+          <input type="number" id="muzzarella-kg" min="0" step="0.1" placeholder="Ej: 5.5">
+        </div>
+        <div class="field full">
+          <label for="muzzarella-obs">Observaciones</label>
+          <input type="text" id="muzzarella-obs" placeholder="Opcional">
+        </div>
+        <button type="submit" class="submit-btn cyan-btn">Agregar a la lista</button>
+      </form>
+
+      <h2 class="section-title">Por registrar</h2>
+      <div id="muzzarella-staging-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+      <button type="button" class="submit-btn cyan-btn" id="muzzarella-btn-registrar-todo" style="width:100%; display:none; margin-top:10px;">Registrar todo</button>
+
+      <h2 class="section-title">Registros</h2>
+      <div class="filters">
+        <input type="date" id="muzzarella-filtro-fecha">
+        <button type="button" class="submit-btn" id="muzzarella-filtro-hoy" style="width:auto; background:var(--panel-2); color:var(--text-dim); border:1px solid var(--border-strong); text-transform:none; font-family:var(--font-body); font-size:13px; padding:10px 16px;">Hoy</button>
+      </div>
+      <div class="reg-list" id="muzzarella-recientes"></div>
+    </section>
+
+    <!-- ============ INSUMOS ============ -->
+    <section class="view view-insumos" id="view-insumos">
+      <h2 class="section-title">Cargar insumo usado</h2>
+      <form class="entry-form" id="form-insumos">
+        <div class="editing-banner" id="insumos-editing-banner">
+          <span>Editando un registro cargado antes</span>
+          <button type="button" id="insumos-cancel-edit">Cancelar edición</button>
+        </div>
+        <div class="field">
+          <label for="insumos-fecha">Fecha</label>
+          <input type="date" id="insumos-fecha">
+        </div>
+        <div class="field">
+          <label for="insumos-sabor">Sabor</label>
+          <select id="insumos-sabor" required></select>
+        </div>
+        <div class="field">
+          <label for="insumos-insumo">Insumo</label>
+          <select id="insumos-insumo" required></select>
+        </div>
+        <div class="field">
+          <label for="insumos-kg">Kg usados</label>
+          <input type="number" id="insumos-kg" min="0" step="0.1" placeholder="Ej: 2.0">
+        </div>
+        <div class="field full">
+          <label for="insumos-obs">Observaciones</label>
+          <input type="text" id="insumos-obs" placeholder="Opcional">
+        </div>
+        <button type="submit" class="submit-btn teal-btn">Agregar a la lista</button>
+      </form>
+
+      <h2 class="section-title">Por registrar</h2>
+      <div id="insumos-staging-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+      <button type="button" class="submit-btn teal-btn" id="insumos-btn-registrar-todo" style="width:100%; display:none; margin-top:10px;">Registrar todo</button>
+
+      <h2 class="section-title">Registros</h2>
+      <div class="filters">
+        <input type="date" id="insumos-filtro-fecha">
+        <button type="button" class="submit-btn" id="insumos-filtro-hoy" style="width:auto; background:var(--panel-2); color:var(--text-dim); border:1px solid var(--border-strong); text-transform:none; font-family:var(--font-body); font-size:13px; padding:10px 16px;">Hoy</button>
+      </div>
+      <div class="reg-list" id="insumos-recientes"></div>
+    </section>
+
+    <!-- ============ AJUSTES ============ -->
+    <section class="view" id="view-ajustes">
+      <h2 class="section-title">Conexión con Control de Rellenos</h2>
+      <div id="rellenos-lock-screen" class="ficha">
+        <div class="ficha-stub">
+          <span class="stub-label">Acceso restringido</span>
+          <span class="stub-value">Solo dirección</span>
+        </div>
+        <p class="note" style="margin-top:0;">La configuración de la conexión y el mapeo con Control de Rellenos las maneja solo la dirección.</p>
+        <button type="button" class="submit-btn violet-btn" id="btn-desbloquear-rellenos" style="width:100%;">Desbloquear (PIN)</button>
+      </div>
+
+      <div id="rellenos-config-content" style="display:none;">
+      <div class="ficha">
+        <p class="note" style="margin-top:0;">Esta app lee (sin modificar nada) cuántos kg de relleno se recibieron en la otra app, para calcular el estimado de empanadas.</p>
+        <button type="button" class="submit-btn teal-btn" id="btn-probar-rellenos" style="width:100%;">Probar conexión con Rellenos</button>
+        <div id="rellenos-diag-resultado" style="margin-top:12px; font-family:var(--font-mono); font-size:12.5px; white-space:pre-wrap;"></div>
+      </div>
+
+      <h2 class="section-title">Mapeo de rellenos y rendimiento</h2>
+      <div class="ficha">
+        <p class="note" style="margin-top:0;">Para cada sabor de acá, elegí qué relleno de la otra app le corresponde, y cuántos gramos de relleno lleva cada empanada. Ya dejé sugeridos los que coinciden por nombre — revisalos. Los que usan solo muzzarella quedan sin mapear (esa app no los registra en kg).</p>
+        <div id="mapeo-rellenos-table" style="display:flex; flex-direction:column; gap:8px;"></div>
+        <button type="button" class="submit-btn violet-btn" id="btn-guardar-mapeo" style="width:100%; margin-top:12px;">Guardar mapeo</button>
+      </div>
+      </div>
+
+      <h2 class="section-title">Informes descargables</h2>
+      <div class="ficha">
+        <p class="note" style="margin-top:0;">Elegí un rango de fechas y descargá un archivo (se abre en Excel) con todo lo cargado en ese período. Si no ponés fechas, se descarga todo.</p>
+        <div class="total-box" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div class="field"><label for="informe-desde">Desde</label><input type="date" id="informe-desde"></div>
+          <div class="field"><label for="informe-hasta">Hasta</label><input type="date" id="informe-hasta"></div>
+        </div>
+        <button type="button" class="submit-btn amber-btn" id="btn-informe-produccion" style="width:100%; margin-top:12px;">Descargar informe de Producción</button>
+        <button type="button" class="submit-btn cyan-btn" id="btn-informe-muzzarella" style="width:100%; margin-top:10px;">Descargar informe de Muzzarella</button>
+        <button type="button" class="submit-btn teal-btn" id="btn-informe-insumos" style="width:100%; margin-top:10px;">Descargar informe de Insumos</button>
+        <button type="button" class="submit-btn" id="btn-informe-limpiar-fechas" style="width:100%; margin-top:10px; background:var(--panel-2); color:var(--text-dim); border:1px solid var(--border-strong); text-transform:none; font-family:var(--font-body);">Vaciar fechas (para descargar todos los días)</button>
+      </div>
+
+      <h2 class="section-title">Diagnóstico de guardado</h2>
+      <div class="ficha" id="diag-card">
+        <p class="note" style="margin-top:0;">Si "Registrar" no guarda nada, tocá este botón: hace una prueba directa de guardado y te muestra el resultado exacto.</p>
+        <button type="button" class="submit-btn teal-btn" id="btn-diagnostico" style="width:100%;">Probar guardado ahora</button>
+        <div id="diag-resultado" style="margin-top:12px; font-family:var(--font-mono); font-size:12.5px; white-space:pre-wrap;"></div>
+      </div>
+
+      <h2 class="section-title">Historial de cambios</h2>
+      <div class="ficha">
+        <p class="note" style="margin-top:0;">Acá queda registro de todo lo que se creó, editó o borró. No se puede borrar desde acá.</p>
+        <div class="historial-list" id="historial-list"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="bottomnav">
+    <button data-view="inicio" class="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>
+      Inicio
+    </button>
+    <button data-view="pedido" class="nav-pedido">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a2 2 0 0 1 2-2z"/><path d="M9 12h6M9 16h6"/></svg>
+      Pedido
+    </button>
+    <button data-view="produccion" class="nav-produccion">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="9"/></svg>
+      Producción
+      <span class="nav-dot" id="nav-dot-produccion"></span>
+    </button>
+    <button data-view="muzzarella" class="nav-muzzarella">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="14" cy="9" r="1"/><circle cx="12" cy="14" r="1"/></svg>
+      Muzzarella
+    </button>
+    <button data-view="insumos" class="nav-insumos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6a3 3 0 0 0 3 3v9M6 3v6M9 3v6M12 21v-6.5A3.5 3.5 0 0 1 15.5 11h0A3.5 3.5 0 0 1 19 14.5V21"/></svg>
+      Insumos
+    </button>
+    <button data-view="ajustes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Ajustes
+    </button>
+  </nav>
+
+  <div id="toast"></div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const SABORES = ["Wok de Vegetales","Carne Cuchillo Suave","Carne Porteña Suave","Pollo Suave","Jamón y Queso","Cebolla y Queso","Cantimpalo y Queso","Chicken BBQ","Roquefort y Jamón","Verdura","Caprese","Humita","Vacío y Provoleta","Matambre a la Pizza","Carne Porteña Picante","Cheeseburger","Bondiola BBQ"];
+
+  const SABORES_MUZZARELLA = ["Jamón y Queso","Cebolla y Queso","Cantimpalo y Queso","Roquefort y Jamón","Caprese","Matambre a la Pizza"];
+  const SABORES_CON_CANTIDAD = ["Jamón y Queso","Cebolla y Queso","Cantimpalo y Queso","Roquefort y Jamón","Caprese"];
+  const UNIDADES_POR_CHAPA_DEFECTO = 36;
+  const UNIDADES_POR_CHAPA = { "Wok de Vegetales": 18, "Matambre a la Pizza": 18 };
+  function unidadesPorChapa(sabor){ return UNIDADES_POR_CHAPA[sabor] || UNIDADES_POR_CHAPA_DEFECTO; }
+
+  const INSUMOS_POR_SABOR = {
+    "Jamón y Queso": ["Jamón"],
+    "Cebolla y Queso": ["Cebolla Pluma"],
+    "Chicken BBQ": ["Cheddar Líquido"],
+    "Roquefort y Jamón": ["Roquefort","Jamón"],
+    "Caprese": ["Albahaca","Tomate Cherry"],
+    "Vacío y Provoleta": ["Provoleta"],
+    "Cheeseburger": ["Cheddar en Fetas","Cheddar Líquido"]
+  };
+  const SABORES_INSUMOS = Object.keys(INSUMOS_POR_SABOR);
+
+  const KEY_SABORES_ACTIVOS = "sabores-activos";
+  const KEY_PRODUCCION = "produccion";
+  const KEY_MUZZARELLA = "muzzarella";
+  const KEY_INSUMOS = "insumos";
+  const KEY_AUDITORIA = "auditoria";
+  const KEY_HORARIOS = "horarios-dia";
+  const KEY_MAPEO_RELLENOS = "mapeo-rellenos";
+
+  // Sabores tal cual existen en la otra app (Control de Rellenos), para el
+  // mapeo. Son los rellenos que se pesan en kg allá — no incluye Fugazza/Faina
+  // (se piden por unidad, no tienen kg) ni los sabores con muzzarella que no
+  // se registran como "relleno" en esa app.
+  const SABORES_RELLENO_EXTERNOS = ["Wok","Carne Cuchillo","Carne porteña","Pollo","Chicken BBQ","Verdura","Humita","Vacio","Matambre","Cheeseburguer","Bondiola","Cebolla Pluma"];
+
+  // Mapeo por defecto sugerido (por nombre parecido) — el usuario lo revisa y
+  // ajusta en Ajustes. Los sabores con muzzarella quedan sin mapear porque
+  // Control de Rellenos no los registra en kg.
+  const MAPEO_RELLENOS_SUGERIDO = {
+    "Wok de Vegetales": "Wok",
+    "Carne Cuchillo Suave": "Carne Cuchillo",
+    "Carne Porteña Suave": "Carne porteña",
+    "Pollo Suave": "Pollo",
+    "Chicken BBQ": "Chicken BBQ",
+    "Verdura": "Verdura",
+    "Humita": "Humita",
+    "Vacío y Provoleta": "Vacio",
+    "Matambre a la Pizza": "Matambre",
+    "Cheeseburger": "Cheeseburguer",
+    "Bondiola BBQ": "Bondiola"
+  };
+
+  let state = { saboresActivos: {}, produccion: [], muzzarella: [], insumos: [], auditoria: [], horarios: {}, mapeoRellenos: {} };
+  let editingId = { produccion: null, muzzarella: null, insumos: null };
+  const PEDIDO_PIN = "1234";
+  let direccionDesbloqueada = false;
+  let stagingProduccion = [];
+  let stagingMuzzarella = [];
+  let stagingInsumos = [];
+
+  let lastStorageError = null;
+  let storageConfirmedWorking = false;
+  let sessionApiOverride = null;
+  const APPS_SCRIPT_URL_FALLBACK = "https://script.google.com/macros/s/AKfycbyd5Qe8y5fexwQCoToBVJH1eeboInktOn-p5OAQLTEV8r8S2JwoQxF0cvSGL60v6gH2Fw/exec";
+
+  function getConfiguredApiUrl(){
+    if(sessionApiOverride) return sessionApiOverride;
+    try{
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = params.get("api");
+      if(fromQuery) return fromQuery;
+    }catch(e){}
+    if(APPS_SCRIPT_URL_FALLBACK && APPS_SCRIPT_URL_FALLBACK.indexOf("PEGA_AQUI") === -1){
+      return APPS_SCRIPT_URL_FALLBACK;
+    }
+    return null;
+  }
+
+  // ---------------- Conexión de SOLO LECTURA con "Control de Rellenos" ----------------
+  // Es una app y un backend (Google Sheet) completamente aparte. Acá solo leemos
+  // (nunca escribimos) para traer cuántos kg de cada relleno llegaron, y así
+  // poder estimar cuántas empanadas deberían salir.
+  const RELLENOS_API_URL_FALLBACK = "https://script.google.com/macros/s/AKfycbwkNx_SaDWH057RT_pswoCN5I1vXwU3fSGB4bwX-P9razDutyTk06dbYFbU-2vv2vVyDw/exec";
+  let sessionRellenosApiOverride = null;
+  let lastRellenosError = null;
+
+  function getConfiguredRellenosApiUrl(){
+    if(sessionRellenosApiOverride) return sessionRellenosApiOverride;
+    if(RELLENOS_API_URL_FALLBACK && RELLENOS_API_URL_FALLBACK.indexOf("PEGA_AQUI") === -1){
+      return RELLENOS_API_URL_FALLBACK;
+    }
+    return null;
+  }
+
+  async function fetchRellenosAll(){
+    try{
+      const apiUrl = getConfiguredRellenosApiUrl();
+      if(!apiUrl) throw new Error("No hay URL de Control de Rellenos configurada.");
+      const res = await fetch(apiUrl + "?all=1", { method: "GET" });
+      if(!res.ok) throw new Error("El servidor de Rellenos respondió con estado " + res.status);
+      const data = await res.json();
+      if(data && data.error) throw new Error(data.error);
+      const values = (data && data.values) || {};
+      const parsed = {};
+      Object.keys(values).forEach(k => {
+        const raw = values[k];
+        if(raw !== null && raw !== undefined && raw !== ""){
+          try{ parsed[k] = JSON.parse(raw); }catch(e){ parsed[k] = null; }
+        } else parsed[k] = null;
+      });
+      lastRellenosError = null;
+      return parsed;
+    }catch(e){
+      lastRellenosError = (e && e.message) ? e.message : String(e);
+      return null;
+    }
+  }
+
+  function todayStr(){
+    const d = new Date();
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d - tz).toISOString().slice(0,10);
+  }
+  function fmtFecha(iso){
+    if(!iso) return "";
+    const [y,m,d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  function fmtFechaHora(ts){
+    const d = new Date(ts);
+    const dd = String(d.getDate()).padStart(2,"0");
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    const hh = String(d.getHours()).padStart(2,"0");
+    const mi = String(d.getMinutes()).padStart(2,"0");
+    return `${dd}/${mm} ${hh}:${mi}`;
+  }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  }
+  function fechaFiltroSeleccionada(inputId){
+    const el = document.getElementById(inputId);
+    return el.value || todayStr();
+  }
+
+  // ---------------- Estado del guardado (informativo, nunca bloquea) ----------------
+  function updateStorageBanner(){
+    const banner = document.getElementById("storage-banner");
+    const dot = document.getElementById("status-dot");
+    const text = document.getElementById("status-text");
+    if(storageConfirmedWorking){
+      banner.classList.remove("show");
+      dot.classList.remove("off");
+      text.textContent = "Datos compartidos entre Pedido, Producción, Muzzarella e Insumos";
+    } else if(lastStorageError){
+      banner.classList.add("show");
+      banner.querySelector(".banner-detail") && (banner.querySelector(".banner-detail").textContent = lastStorageError);
+      dot.classList.add("off");
+      text.textContent = "Guardado con problemas";
+    } else {
+      banner.classList.remove("show");
+      dot.classList.remove("off");
+      text.textContent = "Verificando guardado…";
+    }
+  }
+
+  // ---------------- Storage helpers ----------------
+  async function getShared(key){
+    try{
+      const apiUrl = getConfiguredApiUrl();
+      if(!apiUrl) throw new Error("CONFIG_MISSING");
+      const res = await fetch(apiUrl + "?key=" + encodeURIComponent(key), { method: "GET" });
+      if(!res.ok) throw new Error("El servidor respondió con estado " + res.status);
+      const data = await res.json();
+      if(data && data.error) throw new Error(data.error);
+      storageConfirmedWorking = true; lastStorageError = null; updateStorageBanner();
+      if(data && data.value !== undefined && data.value !== null && data.value !== ""){
+        return typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+      }
+      return null;
+    }catch(e){
+      const msg = (e && e.message) ? e.message : String(e);
+      if(msg !== "CONFIG_MISSING") lastStorageError = msg;
+      updateStorageBanner();
+      return null;
+    }
+  }
+
+  async function getSharedStrict(key){
+    const apiUrl = getConfiguredApiUrl();
+    if(!apiUrl) throw new Error("CONFIG_MISSING");
+    const res = await fetch(apiUrl + "?key=" + encodeURIComponent(key), { method: "GET" });
+    if(!res.ok) throw new Error("El servidor respondió con estado " + res.status);
+    const data = await res.json();
+    if(data && data.error) throw new Error(data.error);
+    storageConfirmedWorking = true; lastStorageError = null; updateStorageBanner();
+    if(data && data.value !== undefined && data.value !== null && data.value !== ""){
+      return typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+    }
+    return null;
+  }
+
+  async function setShared(key, value){
+    try{
+      const apiUrl = getConfiguredApiUrl();
+      if(!apiUrl) throw new Error("CONFIG_MISSING");
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ key, value: JSON.stringify(value) })
+      });
+      if(!res.ok) throw new Error("El servidor respondió con estado " + res.status);
+      const data = await res.json();
+      if(!data || data.ok !== true) throw new Error((data && data.error) ? data.error : "Respuesta inesperada del servidor.");
+      storageConfirmedWorking = true; lastStorageError = null; updateStorageBanner();
+      return true;
+    }catch(e){
+      const msg = (e && e.message) ? e.message : String(e);
+      if(msg !== "CONFIG_MISSING") lastStorageError = msg;
+      updateStorageBanner();
+      return false;
+    }
+  }
+
+  async function getAllFresh(){
+    try{
+      const apiUrl = getConfiguredApiUrl();
+      if(!apiUrl) throw new Error("CONFIG_MISSING");
+      const res = await fetch(apiUrl + "?all=1", { method: "GET" });
+      if(!res.ok) throw new Error("El servidor respondió con estado " + res.status);
+      const data = await res.json();
+      if(data && data.error) throw new Error(data.error);
+      storageConfirmedWorking = true; lastStorageError = null; updateStorageBanner();
+      const values = (data && data.values) || {};
+      const parsed = {};
+      Object.keys(values).forEach(k => {
+        const raw = values[k];
+        if(raw !== null && raw !== undefined && raw !== ""){
+          try{ parsed[k] = JSON.parse(raw); }catch(e){ parsed[k] = null; }
+        } else parsed[k] = null;
+      });
+      return parsed;
+    }catch(e){
+      const msg = (e && e.message) ? e.message : String(e);
+      if(msg !== "CONFIG_MISSING") lastStorageError = msg;
+      updateStorageBanner();
+      return null;
+    }
+  }
+
+  async function setSharedBatch(items){
+    try{
+      const apiUrl = getConfiguredApiUrl();
+      if(!apiUrl) throw new Error("CONFIG_MISSING");
+      const batch = items.map(it => ({ key: it.key, value: JSON.stringify(it.value) }));
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ batch })
+      });
+      if(!res.ok) throw new Error("El servidor respondió con estado " + res.status);
+      const data = await res.json();
+      if(!data || data.ok !== true) throw new Error((data && data.error) ? data.error : "Respuesta inesperada del servidor.");
+      storageConfirmedWorking = true; lastStorageError = null; updateStorageBanner();
+      return true;
+    }catch(e){
+      const msg = (e && e.message) ? e.message : String(e);
+      if(msg !== "CONFIG_MISSING") lastStorageError = msg;
+      updateStorageBanner();
+      return false;
+    }
+  }
+
+  function buildAuditEntry(accion, tipo, resumen){
+    return { id: uid(), ts: Date.now(), accion, tipo, resumen };
+  }
+  function appendAuditArray(baseArr, entry){
+    const arr = (Array.isArray(baseArr) ? baseArr : []).slice();
+    arr.push(entry);
+    return arr.length > 500 ? arr.slice(arr.length - 500) : arr;
+  }
+  async function guardarConAuditoria(key, estadoLocalActual, actualizar, accion, tipoAuditoria){
+    const all = await getAllFresh();
+    const arrFresco = (all && Array.isArray(all[key])) ? all[key] : estadoLocalActual;
+    const resultado = actualizar(arrFresco);
+    if(!resultado) return { ok: null };
+    const auditBase = (all && Array.isArray(all[KEY_AUDITORIA])) ? all[KEY_AUDITORIA] : state.auditoria;
+    const entry = buildAuditEntry(accion, tipoAuditoria, resultado.resumen);
+    const auditArr = appendAuditArray(auditBase, entry);
+    const ok = await setSharedBatch([{ key, value: resultado.arr }, { key: KEY_AUDITORIA, value: auditArr }]);
+    if(ok) state.auditoria = auditArr;
+    return { ok, arr: resultado.arr };
+  }
+
+  async function loadAll(){
+    const all = await getAllFresh();
+    if(all){
+      if(Array.isArray(all[KEY_PRODUCCION])) state.produccion = all[KEY_PRODUCCION];
+      if(Array.isArray(all[KEY_MUZZARELLA])) state.muzzarella = all[KEY_MUZZARELLA];
+      if(Array.isArray(all[KEY_INSUMOS])) state.insumos = all[KEY_INSUMOS];
+      if(Array.isArray(all[KEY_AUDITORIA])) state.auditoria = all[KEY_AUDITORIA];
+      const sa = all[KEY_SABORES_ACTIVOS];
+      if(sa && typeof sa === "object") state.saboresActivos = sa;
+      const hor = all[KEY_HORARIOS];
+      if(hor && typeof hor === "object") state.horarios = hor;
+      const map = all[KEY_MAPEO_RELLENOS];
+      if(map && typeof map === "object") state.mapeoRellenos = map;
+    }
+  }
+
+  // ---------------- Toast ----------------
+  let toastTimer = null;
+  function toast(msg, isErr){
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.toggle("err", !!isErr);
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> el.classList.remove("show"), 3200);
+  }
+
+  // ---------------- Nav ----------------
+  function switchView(name){
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    document.getElementById("view-"+name).classList.add("active");
+    document.querySelectorAll(".bottomnav button").forEach(b => b.classList.toggle("active", b.dataset.view === name));
+    refreshView(name);
+  }
+  async function refreshView(name){
+    await loadAll();
+    if(name === "inicio") renderInicio();
+    if(name === "pedido") mostrarPantallaPedido();
+    if(name === "produccion"){ refrescarSaborSelectProduccion(); renderCnAlert(); renderPendientes(); renderHorariosHoy(); renderProduccionRecientes(); renderProduccionStaging(); renderEstimadoRelleno(); aplicarColapsoEstimado(); }
+    if(name === "muzzarella"){ renderMuzzarellaRecientes(); renderMuzzarellaStaging(); }
+    if(name === "insumos"){ renderInsumosRecientes(); renderInsumosStaging(); }
+    if(name === "ajustes"){ renderHistorial(); mostrarPantallaRellenosConfig(); if(direccionDesbloqueada) renderMapeoRellenos(); }
+    updateAlertDot();
+  }
+  document.querySelectorAll(".bottomnav button[data-view]").forEach(btn => {
+    btn.addEventListener("click", () => switchView(btn.dataset.view));
+  });
+  document.querySelectorAll("[data-goto]").forEach(btn => {
+    btn.addEventListener("click", () => switchView(btn.dataset.goto));
+  });
+
+  function fillSelect(sel, lista){
+    sel.innerHTML = "";
+    lista.forEach(s => {
+      const o = document.createElement("option");
+      o.value = s; o.textContent = s;
+      sel.appendChild(o);
+    });
+  }
+
+  // ---------------- Sabores activos por fecha ----------------
+  // dia[sabor] puede ser: boolean (formato viejo) u objeto { activo, cantidad, cn }.
+  function datoSabor(fecha, sabor){
+    const dia = state.saboresActivos[fecha];
+    const v = dia ? dia[sabor] : undefined;
+    if(v === undefined) return { activo: true, cantidad: 0, cn: 0 };
+    if(typeof v === "boolean") return { activo: v, cantidad: 0, cn: 0 };
+    return { activo: !!v.activo, cantidad: Number(v.cantidad) || 0, cn: Number(v.cn) || 0 };
+  }
+  function esSaborActivo(fecha, sabor){ return datoSabor(fecha, sabor).activo; }
+  function cantidadPedida(fecha, sabor){ return datoSabor(fecha, sabor).cantidad; }
+  function cnPedido(fecha, sabor){ return datoSabor(fecha, sabor).cn; }
+  function saboresActivosDe(fecha){
+    return SABORES.filter(s => esSaborActivo(fecha, s));
+  }
+  function saboresConCnPedido(fecha){
+    return SABORES.filter(s => cnPedido(fecha, s) > 0);
+  }
+
+  // ---------------- Pedido: PIN de acceso ----------------
+  function mostrarPantallaPedido(){
+    const lock = document.getElementById("pedido-lock-screen");
+    const content = document.getElementById("pedido-content");
+    if(direccionDesbloqueada){
+      lock.style.display = "none";
+      content.style.display = "block";
+      renderPedidoToggles();
+    } else {
+      lock.style.display = "block";
+      content.style.display = "none";
+      document.getElementById("pedido-pin-input").value = "";
+      document.getElementById("pedido-pin-error").style.display = "none";
+    }
+  }
+  document.getElementById("pedido-pin-btn").addEventListener("click", () => {
+    const val = document.getElementById("pedido-pin-input").value;
+    if(val === PEDIDO_PIN){
+      direccionDesbloqueada = true;
+      mostrarPantallaPedido();
+      renderDetalleInicio();
+    } else {
+      document.getElementById("pedido-pin-error").style.display = "block";
+    }
+  });
+  document.getElementById("pedido-pin-input").addEventListener("keydown", (e) => {
+    if(e.key === "Enter") document.getElementById("pedido-pin-btn").click();
+  });
+
+  // Protege una acción puntual (editar/borrar un registro ya guardado) con el
+  // mismo PIN de dirección, sin necesidad de bloquear toda una pantalla.
+  function requierePin(accion){
+    if(direccionDesbloqueada){ accion(); return; }
+    const val = prompt("Esta acción es solo para dirección.\nIngresá el PIN:");
+    if(val === null) return; // canceló
+    if(val === PEDIDO_PIN){
+      direccionDesbloqueada = true;
+      accion();
+    } else {
+      toast("PIN incorrecto.", true);
+    }
+  }
+
+  function mostrarPantallaRellenosConfig(){
+    const lock = document.getElementById("rellenos-lock-screen");
+    const content = document.getElementById("rellenos-config-content");
+    if(direccionDesbloqueada){
+      lock.style.display = "none";
+      content.style.display = "block";
+    } else {
+      lock.style.display = "block";
+      content.style.display = "none";
+    }
+  }
+  document.getElementById("btn-desbloquear-rellenos").addEventListener("click", () => {
+    requierePin(() => { mostrarPantallaRellenosConfig(); renderMapeoRellenos(); });
+  });
+
+  function renderPedidoToggles(){
+    const fecha = document.getElementById("pedido-fecha").value || todayStr();
+    const cont = document.getElementById("pedido-toggle-list");
+    cont.innerHTML = "";
+    SABORES.forEach(s => {
+      const dato = datoSabor(fecha, s);
+      const conCantidad = SABORES_CON_CANTIDAD.includes(s);
+      const row = document.createElement("div");
+      row.className = "sabor-toggle-row" + (dato.activo ? "" : " off");
+      row.innerHTML = `
+        <span class="stn-name">${s}</span>
+        <div class="stn-right">
+          <div class="stn-cantidad stn-cn">
+            <label for="cn-${s}">C.N.</label>
+            <input type="number" id="cn-${s}" data-cn-sabor="${s}" min="0" step="1" value="${dato.cn}">
+          </div>
+          ${conCantidad ? `
+          <div class="stn-cantidad">
+            <label for="cant-${s}">Cant.</label>
+            <input type="number" id="cant-${s}" data-cantidad-sabor="${s}" min="0" max="200" step="1" value="${dato.cantidad}">
+          </div>` : ""}
+          <label class="switch">
+            <input type="checkbox" data-sabor="${s}" ${dato.activo ? "checked" : ""}>
+            <span class="slider"></span>
+          </label>
+        </div>`;
+      row.querySelector("input[type=checkbox]").addEventListener("change", (e) => {
+        row.classList.toggle("off", !e.target.checked);
+      });
+      row.querySelectorAll("input[type=number]").forEach(inp => {
+        inp.addEventListener("change", () => {
+          let v = Number(inp.value) || 0;
+          if(v < 0) v = 0;
+          if(inp.dataset.cantidadSabor && v > 200) v = 200;
+          inp.value = v;
+        });
+      });
+      cont.appendChild(row);
+    });
+  }
+  document.getElementById("pedido-fecha").addEventListener("change", renderPedidoToggles);
+
+  document.getElementById("btn-guardar-pedido").addEventListener("click", async () => {
+    const fecha = document.getElementById("pedido-fecha").value || todayStr();
+    const btn = document.getElementById("btn-guardar-pedido");
+    btn.disabled = true;
+    try{
+      const mapa = {};
+      document.querySelectorAll("#pedido-toggle-list input[type=checkbox]").forEach(inp => {
+        const sabor = inp.dataset.sabor;
+        let cantidad = 0;
+        if(SABORES_CON_CANTIDAD.includes(sabor)){
+          const cantInput = document.querySelector(`input[data-cantidad-sabor="${CSS.escape(sabor)}"]`);
+          cantidad = cantInput ? (Number(cantInput.value) || 0) : 0;
+        }
+        const cnInput = document.querySelector(`input[data-cn-sabor="${CSS.escape(sabor)}"]`);
+        const cn = cnInput ? (Number(cnInput.value) || 0) : 0;
+        mapa[sabor] = { activo: inp.checked, cantidad, cn };
+      });
+      const all = await getAllFresh();
+      const nuevo = { ...((all && all[KEY_SABORES_ACTIVOS]) || state.saboresActivos) };
+      nuevo[fecha] = mapa;
+      const auditBase = (all && Array.isArray(all[KEY_AUDITORIA])) ? all[KEY_AUDITORIA] : state.auditoria;
+      const desactivados = Object.keys(mapa).filter(s => !mapa[s].activo);
+      const cantidades = SABORES_CON_CANTIDAD.filter(s => mapa[s] && mapa[s].activo && mapa[s].cantidad > 0).map(s => `${s}: ${mapa[s].cantidad}`);
+      const cnList = Object.keys(mapa).filter(s => mapa[s].cn > 0).map(s => `${s}: ${mapa[s].cn}`);
+      const partes = [];
+      partes.push(desactivados.length ? `no se hacen: ${desactivados.join(", ")}` : "se hacen todos los sabores");
+      if(cantidades.length) partes.push(`cantidades: ${cantidades.join(", ")}`);
+      if(cnList.length) partes.push(`C.N.: ${cnList.join(", ")}`);
+      const resumen = `${fmtFecha(fecha)}: ${partes.join(" · ")}`;
+      const auditArr = appendAuditArray(auditBase, buildAuditEntry("editar", "pedido (sabores del día)", resumen));
+      const ok = await setSharedBatch([{ key: KEY_SABORES_ACTIVOS, value: nuevo }, { key: KEY_AUDITORIA, value: auditArr }]);
+      if(ok){
+        state.saboresActivos = nuevo;
+        state.auditoria = auditArr;
+        toast("Guardado. Producción ya ve los sabores y cantidades actualizados.");
+      } else {
+        toast("No se pudo guardar. Andá a Ajustes y tocá \"Probar guardado ahora\".", true);
+      }
+    } finally { btn.disabled = false; }
+  });
+
+  // ---------------- Producción: total y duración en vivo ----------------
+  function calcularTotalProduccion(){
+    const sabor = document.getElementById("produccion-sabor").value;
+    const chapas = Number(document.getElementById("produccion-chapas").value) || 0;
+    const ui = Number(document.getElementById("produccion-ui").value) || 0;
+    const ue = Number(document.getElementById("produccion-ue").value) || 0;
+    const cn = Number(document.getElementById("produccion-cn").value) || 0;
+    const porChapa = unidadesPorChapa(sabor);
+    const unidades = (chapas * porChapa) - ui + ue - cn;
+    document.getElementById("produccion-total-preview").textContent = unidades;
+    return unidades;
+  }
+  function calcularDuracion(){
+    const ini = document.getElementById("produccion-inicio").value;
+    const fin = document.getElementById("produccion-fin").value;
+    const out = document.getElementById("produccion-duracion-preview");
+    if(!ini || !fin){ out.textContent = "— min"; return null; }
+    const [ih, im] = ini.split(":").map(Number);
+    const [fh, fm] = fin.split(":").map(Number);
+    let mins = (fh*60+fm) - (ih*60+im);
+    if(mins < 0) mins += 24*60;
+    out.textContent = mins + " min";
+    return mins;
+  }
+  ["produccion-sabor","produccion-chapas","produccion-ui","produccion-ue","produccion-cn"].forEach(id => document.getElementById(id).addEventListener("input", calcularTotalProduccion));
+  document.getElementById("produccion-sabor").addEventListener("change", calcularTotalProduccion);
+  document.getElementById("produccion-sabor").addEventListener("change", autocompletarCN);
+  ["produccion-inicio","produccion-fin"].forEach(id => document.getElementById(id).addEventListener("change", calcularDuracion));
+
+  // Si la dirección ya declaró Chapas Negativas para este sabor en Pedido, las
+  // completa solas al elegir el sabor — no hace falta que el operario las tipee.
+  function autocompletarCN(){
+    const fecha = document.getElementById("produccion-fecha").value || todayStr();
+    const sabor = document.getElementById("produccion-sabor").value;
+    if(!sabor) return;
+    const cn = cnPedido(fecha, sabor);
+    document.getElementById("produccion-cn").value = cn;
+    calcularTotalProduccion();
+  }
+
+  function refrescarSaborSelectProduccion(){
+    const fecha = document.getElementById("produccion-fecha").value || todayStr();
+    fillSelect(document.getElementById("produccion-sabor"), saboresActivosDe(fecha));
+    autocompletarCN();
+  }
+  document.getElementById("produccion-fecha").addEventListener("change", refrescarSaborSelectProduccion);
+
+  // ---------------- Alerta C.N. y pendientes ----------------
+  function renderCnAlert(){
+    const hoy = todayStr();
+    const cont = document.getElementById("cn-alert-list");
+
+    // C.N. que declaró la dirección en Pedido (lo urgente a priorizar, ya conocido antes de arrancar).
+    const pedidas = saboresConCnPedido(hoy);
+    // C.N. que se terminó registrando en la producción real de hoy (post-hoc).
+    const cargadas = state.produccion.filter(r => r.fecha === hoy && Number(r.cn||0) > 0);
+    const cargadasPorSabor = {};
+    cargadas.forEach(r => { cargadasPorSabor[r.sabor] = (cargadasPorSabor[r.sabor]||0) + Number(r.cn); });
+
+    if(pedidas.length === 0 && cargadas.length === 0){
+      cont.innerHTML = `<div class="empty-state">Sin chapas negativas hoy.</div>`;
+      return;
+    }
+    cont.innerHTML = "";
+    pedidas.sort((a,b)=> cnPedido(hoy,b) - cnPedido(hoy,a)).forEach(s => {
+      const yaHecho = cargadasPorSabor[s];
+      const div = document.createElement("div");
+      div.className = "cn-item";
+      div.innerHTML = `<span class="cn-sabor">${s}</span><span class="cn-cant">${cnPedido(hoy,s)} C.N. pedidas${yaHecho!=null ? " · " + yaHecho + " hechas" : ""}</span>`;
+      cont.appendChild(div);
+      delete cargadasPorSabor[s];
+    });
+    // Sabores con C.N. cargada en producción pero que la dirección no había marcado en Pedido.
+    Object.keys(cargadasPorSabor).forEach(s => {
+      const div = document.createElement("div");
+      div.className = "cn-item";
+      div.innerHTML = `<span class="cn-sabor">${s}</span><span class="cn-cant">${cargadasPorSabor[s]} C.N. hechas</span>`;
+      cont.appendChild(div);
+    });
+  }
+
+  function renderPendientes(){
+    const hoy = todayStr();
+    const activos = saboresActivosDe(hoy);
+    const yaCargados = new Set(state.produccion.filter(r => r.fecha === hoy).map(r => r.sabor));
+    const pendientes = activos.filter(s => !yaCargados.has(s));
+    const cont = document.getElementById("produccion-pendientes");
+    if(pendientes.length === 0){
+      cont.innerHTML = `<div class="empty-state">${activos.length === 0 ? "No hay sabores activos para hoy — revisá Pedido." : "Ya cargaste todos los sabores de hoy."}</div>`;
+      return;
+    }
+    cont.innerHTML = "";
+    pendientes.forEach(s => {
+      const cant = cantidadPedida(hoy, s);
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "pend-chip pend-chip-click";
+      chip.textContent = cant > 0 ? `${s} — pedido: ${cant}` : s;
+      chip.addEventListener("click", () => cargarSaborPendiente(s));
+      cont.appendChild(chip);
+    });
+  }
+
+  // ---------------- Estimado según relleno recibido (conexión con Control de Rellenos) ----------------
+  function datoMapeo(saborProd){
+    const m = state.mapeoRellenos[saborProd];
+    if(m) return { saborRelleno: m.saborRelleno || "", gramos: Number(m.gramos) || 50 };
+    const sugerido = MAPEO_RELLENOS_SUGERIDO[saborProd];
+    return { saborRelleno: sugerido || "", gramos: 50 };
+  }
+
+  function fechaAyer(){
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d - tz).toISOString().slice(0,10);
+  }
+
+  async function calcularEstimado(fecha){
+    const rellenosData = await fetchRellenosAll();
+    if(!rellenosData){
+      return { error: lastRellenosError || "No se pudo conectar con Control de Rellenos." };
+    }
+    const regsProd = Array.isArray(rellenosData["regs-produccion"]) ? rellenosData["regs-produccion"] : [];
+    const kgPorSaborRelleno = {};
+    regsProd.filter(r => r.fecha === fecha).forEach(r => {
+      kgPorSaborRelleno[r.sabor] = (kgPorSaborRelleno[r.sabor] || 0) + Number(r.kg || 0);
+    });
+
+    const filas = [];
+    SABORES.forEach(saborProd => {
+      const map = datoMapeo(saborProd);
+      if(!map.saborRelleno) return; // sin mapear todavía
+      const kg = kgPorSaborRelleno[map.saborRelleno] || 0;
+      if(kg <= 0) return;
+      const unidadesEst = kg / (map.gramos / 1000);
+      const porChapa = unidadesPorChapa(saborProd);
+      const chapas = Math.floor(unidadesEst / porChapa);
+      const resto = Math.round(unidadesEst - chapas * porChapa);
+      filas.push({ saborProd, saborRelleno: map.saborRelleno, kg, unidadesEst: Math.round(unidadesEst), chapas, resto });
+    });
+    filas.sort((a,b)=> a.saborProd.localeCompare(b.saborProd));
+    return { filas };
+  }
+
+  async function renderEstimadoRelleno(){
+    const fecha = document.getElementById("estimado-fecha").value || fechaAyer();
+    const cont = document.getElementById("estimado-lista");
+    cont.innerHTML = `<div class="empty-state">Consultando Control de Rellenos...</div>`;
+    const resultado = await calcularEstimado(fecha);
+    if(resultado.error){
+      cont.innerHTML = `<div class="empty-state">No se pudo traer datos de Control de Rellenos: ${escapeHtml(resultado.error)}</div>`;
+      return;
+    }
+    if(resultado.filas.length === 0){
+      cont.innerHTML = `<div class="empty-state">No hay relleno recibido registrado para el ${fmtFecha(fecha)} (o los sabores todavía no están mapeados en Ajustes).</div>`;
+      return;
+    }
+    // Lo que ya se lleva producido HOY de cada sabor, para comparar en vivo contra el estimado.
+    const hoy = todayStr();
+    const realPorSabor = {};
+    state.produccion.filter(r => r.fecha === hoy).forEach(r => {
+      realPorSabor[r.sabor] = (realPorSabor[r.sabor] || 0) + Number(r.unidades || 0);
+    });
+    cont.innerHTML = "";
+    resultado.filas.forEach(f => {
+      const real = realPorSabor[f.saborProd] || 0;
+      const diff = real - f.unidadesEst;
+      const div = document.createElement("div");
+      div.className = "reg-row";
+      div.innerHTML = `
+        <div class="reg-main">
+          <div class="reg-sabor">${f.saborProd}</div>
+          <div class="reg-meta">Estimado: ${f.unidadesEst} u. (${f.chapas} chapas + ${f.resto} u.)</div>
+        </div>
+        <div class="reg-nums">
+          <div class="kg">${real} u. hoy</div>
+          <div class="bateas" style="color:${Math.abs(diff) <= 5 ? 'var(--success)' : 'var(--danger)'};">${diff >= 0 ? "+" : ""}${diff} u.</div>
+        </div>`;
+      cont.appendChild(div);
+    });
+  }
+
+  function cargarSaborPendiente(sabor){
+    const select = document.getElementById("produccion-sabor");
+    if([...select.options].some(o => o.value === sabor)){
+      select.value = sabor;
+      select.dispatchEvent(new Event("change"));
+    }
+    calcularTotalProduccion();
+    document.getElementById("form-produccion").scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("produccion-chapas").focus();
+    toast(`${sabor} seleccionado. Cargá los datos y agregalo a la lista.`);
+  }
+
+  // ---------------- Horarios del día ----------------
+  function minutosEntre(ini, fin){
+    if(!ini || !fin) return null;
+    const [ih, im] = ini.split(":").map(Number);
+    const [fh, fm] = fin.split(":").map(Number);
+    let mins = (fh*60+fm) - (ih*60+im);
+    if(mins < 0) mins += 24*60;
+    return mins;
+  }
+  function horaAhora(){
+    const d = new Date();
+    return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+  }
+
+  const HORARIO_BLOQUES = {
+    jornada: { inicio: "inicioDia", fin: "finDia" },
+    desayuno: { inicio: "desayunoInicio", fin: "desayunoFin" },
+    almuerzo: { inicio: "almuerzoInicio", fin: "almuerzoFin" }
+  };
+
+  // ---------------- Colapsar / expandir Horarios ----------------
+  let horariosColapsado = false;
+  function aplicarColapsoHorarios(){
+    const body = document.getElementById("horarios-body");
+    const btn = document.getElementById("horarios-toggle-btn");
+    body.classList.toggle("collapsed", horariosColapsado);
+    btn.textContent = horariosColapsado ? "Ampliar ▼" : "Minimizar ▲";
+  }
+  document.getElementById("horarios-toggle-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    horariosColapsado = !horariosColapsado;
+    aplicarColapsoHorarios();
+  });
+  document.getElementById("horarios-header").addEventListener("click", () => {
+    horariosColapsado = !horariosColapsado;
+    aplicarColapsoHorarios();
+  });
+
+  // ---------------- Colapsar / expandir Estimado ----------------
+  let estimadoColapsado = true;
+  function aplicarColapsoEstimado(){
+    const body = document.getElementById("estimado-body");
+    const btn = document.getElementById("estimado-toggle-btn");
+    body.classList.toggle("collapsed", estimadoColapsado);
+    btn.textContent = estimadoColapsado ? "Ampliar ▼" : "Minimizar ▲";
+  }
+  document.getElementById("estimado-toggle-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    estimadoColapsado = !estimadoColapsado;
+    aplicarColapsoEstimado();
+  });
+  document.getElementById("estimado-header").addEventListener("click", () => {
+    estimadoColapsado = !estimadoColapsado;
+    aplicarColapsoEstimado();
+  });
+
+  function renderHorariosHoy(){
+    const hoy = todayStr();
+    document.getElementById("horarios-fecha-label").textContent = fmtFecha(hoy);
+    const h = state.horarios[hoy] || {};
+
+    document.getElementById("horario-inicio-dia").value = h.inicioDia || "";
+    document.getElementById("horario-fin-dia").value = h.finDia || "";
+    document.getElementById("horario-desayuno-inicio").value = h.desayunoInicio || "";
+    document.getElementById("horario-desayuno-fin").value = h.desayunoFin || "";
+    document.getElementById("horario-almuerzo-inicio").value = h.almuerzoInicio || "";
+    document.getElementById("horario-almuerzo-fin").value = h.almuerzoFin || "";
+
+    Object.keys(HORARIO_BLOQUES).forEach(bloque => {
+      const { inicio, fin } = HORARIO_BLOQUES[bloque];
+      const vIni = h[inicio], vFin = h[fin];
+      document.getElementById(`horario-${bloque}-inicio-valor`).textContent = vIni || "—";
+      document.getElementById(`horario-${bloque}-fin-valor`).textContent = vFin || "—";
+      const btnIni = document.querySelector(`.horario-bloque[data-bloque="${bloque}"] .hb-btn[data-campo="${inicio}"]`);
+      const btnFin = document.querySelector(`.horario-bloque[data-bloque="${bloque}"] .hb-btn[data-campo="${fin}"]`);
+      btnIni.disabled = !!vIni;
+      btnIni.textContent = vIni ? "Ya marcado" : "Marcar ahora";
+      btnFin.disabled = !vIni || !!vFin;
+      btnFin.textContent = vFin ? "Ya marcado" : "Marcar ahora";
+      const dur = minutosEntre(vIni, vFin);
+      document.getElementById(`horario-${bloque}-duracion`).textContent = dur != null ? `Duración: ${dur} min` : "";
+    });
+  }
+
+  async function guardarCampoHorario(campo, valor){
+    const hoy = todayStr();
+    const all = await getAllFresh();
+    const nuevo = { ...((all && all[KEY_HORARIOS]) || state.horarios) };
+    const diaActual = { ...(nuevo[hoy] || {}) };
+    diaActual[campo] = valor;
+    nuevo[hoy] = diaActual;
+    const auditBase = (all && Array.isArray(all[KEY_AUDITORIA])) ? all[KEY_AUDITORIA] : state.auditoria;
+    const etiquetas = { inicioDia:"Inicio de día", finDia:"Fin de día", desayunoInicio:"Desayuno (inicio)", desayunoFin:"Desayuno (fin)", almuerzoInicio:"Almuerzo (inicio)", almuerzoFin:"Almuerzo (fin)" };
+    const auditArr = appendAuditArray(auditBase, buildAuditEntry("editar", "horarios del día", `${fmtFecha(hoy)}: ${etiquetas[campo]||campo} = ${valor}`));
+    const ok = await setSharedBatch([{ key: KEY_HORARIOS, value: nuevo }, { key: KEY_AUDITORIA, value: auditArr }]);
+    if(ok){
+      state.horarios = nuevo; state.auditoria = auditArr;
+      renderHorariosHoy();
+      toast("Horario guardado.");
+    } else {
+      toast("No se pudo guardar. Andá a Ajustes y tocá \"Probar guardado ahora\".", true);
+    }
+  }
+
+  document.querySelectorAll(".hb-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      await guardarCampoHorario(btn.dataset.campo, horaAhora());
+    });
+  });
+
+  document.getElementById("horarios-editar-toggle").addEventListener("click", () => {
+    const el = document.getElementById("horarios-manual");
+    el.style.display = el.style.display === "none" ? "block" : "none";
+  });
+
+  document.getElementById("horarios-guardar-manual").addEventListener("click", async () => {
+    const hoy = todayStr();
+    const btn = document.getElementById("horarios-guardar-manual");
+    btn.disabled = true;
+    try{
+      const nuevoHorario = {
+        inicioDia: document.getElementById("horario-inicio-dia").value,
+        finDia: document.getElementById("horario-fin-dia").value,
+        desayunoInicio: document.getElementById("horario-desayuno-inicio").value,
+        desayunoFin: document.getElementById("horario-desayuno-fin").value,
+        almuerzoInicio: document.getElementById("horario-almuerzo-inicio").value,
+        almuerzoFin: document.getElementById("horario-almuerzo-fin").value
+      };
+      const all = await getAllFresh();
+      const nuevo = { ...((all && all[KEY_HORARIOS]) || state.horarios) };
+      nuevo[hoy] = nuevoHorario;
+      const auditBase = (all && Array.isArray(all[KEY_AUDITORIA])) ? all[KEY_AUDITORIA] : state.auditoria;
+      const auditArr = appendAuditArray(auditBase, buildAuditEntry("editar", "horarios del día", `${fmtFecha(hoy)}: editados a mano`));
+      const ok = await setSharedBatch([{ key: KEY_HORARIOS, value: nuevo }, { key: KEY_AUDITORIA, value: auditArr }]);
+      if(ok){
+        state.horarios = nuevo; state.auditoria = auditArr;
+        renderHorariosHoy();
+        toast("Horarios guardados.");
+      } else {
+        toast("No se pudo guardar. Andá a Ajustes y tocá \"Probar guardado ahora\".", true);
+      }
+    } finally { btn.disabled = false; }
+  });
+
+  // ---------------- Producción: staging + registro ----------------
+  function equipoResumen(item){
+    const partes = [];
+    if(item.tapas) partes.push(`Tapas: ${item.tapas}`);
+    if(item.relleno) partes.push(`Relleno: ${item.relleno}`);
+    if(item.recibio) partes.push(`Recibió: ${item.recibio}`);
+    if(item.comodin) partes.push(`Comodín: ${item.comodin}`);
+    if(item.responsable) partes.push(`Responsable: ${item.responsable}`);
+    return partes.join(" · ");
+  }
+  function resumenProduccion(item){
+    return `Chapas ${item.chapas} · U.I. ${item.ui} · U.E. ${item.ue} · C.N. ${item.cn} · Unidades ${item.unidades}`;
+  }
+
+  function renderProduccionStaging(){
+    const cont = document.getElementById("produccion-staging-list");
+    const btnTodo = document.getElementById("produccion-btn-registrar-todo");
+    cont.innerHTML = "";
+    if(stagingProduccion.length === 0){
+      cont.innerHTML = `<div class="empty-state">Todavía no agregaste ningún sabor a la lista.</div>`;
+      btnTodo.style.display = "none";
+      return;
+    }
+    stagingProduccion.forEach((item, idx) => {
+      const eqTxt = equipoResumen(item);
+      const div = document.createElement("div");
+      div.className = "reg-row" + (item.cn > 0 ? " cn-row" : "");
+      div.innerHTML = `
+        <div class="reg-main">
+          <div class="reg-sabor">${item.sabor}</div>
+          <div class="reg-meta">${resumenProduccion(item)}${eqTxt ? " · " + escapeHtml(eqTxt) : ""}</div>
+        </div>
+        <div class="reg-nums">
+          <div class="kg">${item.unidades}</div>
+          ${item.cn > 0 ? `<div class="cn-badge">${item.cn} C.N.</div>` : ""}
+        </div>
+        <div class="reg-actions">
+          <button type="button" class="reg-action-btn edit-btn">Editar</button>
+          <button type="button" class="reg-action-btn delete-btn">Quitar</button>
+        </div>`;
+      div.querySelector(".edit-btn").addEventListener("click", () => editarStagingProduccion(idx));
+      div.querySelector(".delete-btn").addEventListener("click", () => { stagingProduccion.splice(idx,1); renderProduccionStaging(); });
+      cont.appendChild(div);
+    });
+    btnTodo.style.display = "block";
+    btnTodo.textContent = `Registrar todo (${stagingProduccion.length})`;
+  }
+
+  function limpiarCamposProduccion(){
+    document.getElementById("produccion-chapas").value = 0;
+    document.getElementById("produccion-ui").value = 0;
+    document.getElementById("produccion-ue").value = 0;
+    document.getElementById("produccion-cn").value = 0;
+    document.getElementById("produccion-tapas").value = "";
+    document.getElementById("produccion-relleno").value = "";
+    document.getElementById("produccion-recibio").value = "";
+    document.getElementById("produccion-comodin").value = "";
+    document.getElementById("produccion-responsable").value = "";
+    document.getElementById("produccion-inicio").value = "";
+    document.getElementById("produccion-fin").value = "";
+    document.getElementById("produccion-desperdicio").value = 0;
+    document.getElementById("produccion-obs").value = "";
+    calcularTotalProduccion();
+    calcularDuracion();
+  }
+
+  function editarStagingProduccion(idx){
+    const item = stagingProduccion[idx];
+    document.getElementById("produccion-sabor").value = item.sabor;
+    document.getElementById("produccion-chapas").value = item.chapas;
+    document.getElementById("produccion-ui").value = item.ui;
+    document.getElementById("produccion-ue").value = item.ue;
+    document.getElementById("produccion-cn").value = item.cn;
+    document.getElementById("produccion-tapas").value = item.tapas || "";
+    document.getElementById("produccion-relleno").value = item.relleno || "";
+    document.getElementById("produccion-recibio").value = item.recibio || "";
+    document.getElementById("produccion-comodin").value = item.comodin || "";
+    document.getElementById("produccion-responsable").value = item.responsable || "";
+    document.getElementById("produccion-inicio").value = item.inicio || "";
+    document.getElementById("produccion-fin").value = item.fin || "";
+    document.getElementById("produccion-desperdicio").value = item.desperdicio || 0;
+    document.getElementById("produccion-obs").value = item.obs || "";
+    calcularTotalProduccion();
+    calcularDuracion();
+    stagingProduccion.splice(idx, 1);
+    renderProduccionStaging();
+    toast("Corregí los datos y tocá \"Agregar a la lista\" de nuevo.");
+    document.getElementById("form-produccion").scrollIntoView({ behavior:"smooth", block:"start" });
+  }
+
+  document.getElementById("form-produccion").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if(editingId.produccion){ submitEditProduccion(); return; }
+    const fecha = document.getElementById("produccion-fecha").value || todayStr();
+    const sabor = document.getElementById("produccion-sabor").value;
+    if(!sabor){ toast("Elegí un sabor.", true); return; }
+    const responsableCheck = document.getElementById("produccion-responsable").value.trim();
+    if(!responsableCheck){
+      toast("Ingresá el nombre del responsable antes de continuar.", true);
+      document.getElementById("produccion-responsable").focus();
+      return;
+    }
+    const item = {
+      sabor,
+      chapas: Number(document.getElementById("produccion-chapas").value)||0,
+      ui: Number(document.getElementById("produccion-ui").value)||0,
+      ue: Number(document.getElementById("produccion-ue").value)||0,
+      cn: Number(document.getElementById("produccion-cn").value)||0,
+      tapas: document.getElementById("produccion-tapas").value.trim(),
+      relleno: document.getElementById("produccion-relleno").value.trim(),
+      recibio: document.getElementById("produccion-recibio").value.trim(),
+      comodin: document.getElementById("produccion-comodin").value.trim(),
+      responsable: document.getElementById("produccion-responsable").value.trim(),
+      inicio: document.getElementById("produccion-inicio").value,
+      fin: document.getElementById("produccion-fin").value,
+      duracionMin: calcularDuracion(),
+      desperdicio: Number(document.getElementById("produccion-desperdicio").value)||0,
+      obs: document.getElementById("produccion-obs").value.trim()
+    };
+    item.unidades = (item.chapas * unidadesPorChapa(sabor)) - item.ui + item.ue - item.cn;
+    stagingProduccion.push(item);
+    renderProduccionStaging();
+    toast(`${sabor} agregado a la lista.`);
+    limpiarCamposProduccion();
+  });
+
+  async function submitEditProduccion(){
+    const btn = document.querySelector("#form-produccion .submit-btn");
+    btn.disabled = true;
+    try{
+      const fecha = document.getElementById("produccion-fecha").value || todayStr();
+      const sabor = document.getElementById("produccion-sabor").value;
+      const chapas = Number(document.getElementById("produccion-chapas").value)||0;
+      const ui = Number(document.getElementById("produccion-ui").value)||0;
+      const ue = Number(document.getElementById("produccion-ue").value)||0;
+      const cn = Number(document.getElementById("produccion-cn").value)||0;
+      const unidades = (chapas * unidadesPorChapa(sabor)) - ui + ue - cn;
+      const tapas = document.getElementById("produccion-tapas").value.trim();
+      const relleno = document.getElementById("produccion-relleno").value.trim();
+      const recibio = document.getElementById("produccion-recibio").value.trim();
+      const comodin = document.getElementById("produccion-comodin").value.trim();
+      const responsable = document.getElementById("produccion-responsable").value.trim();
+      if(!responsable){
+        toast("Ingresá el nombre del responsable antes de continuar.", true);
+        document.getElementById("produccion-responsable").focus();
+        return;
+      }
+      const inicio = document.getElementById("produccion-inicio").value;
+      const fin = document.getElementById("produccion-fin").value;
+      const duracionMin = calcularDuracion();
+      const desperdicio = Number(document.getElementById("produccion-desperdicio").value)||0;
+      const obs = document.getElementById("produccion-obs").value.trim();
+      const idEditando = editingId.produccion;
+      const { ok, arr } = await guardarConAuditoria(KEY_PRODUCCION, state.produccion, (fresco) => {
+        const idx = fresco.findIndex(x => x.id === idEditando);
+        if(idx === -1){ toast("Ese registro ya no existe.", true); cancelEditProduccion(); return null; }
+        const anterior = fresco[idx];
+        const actualizado = { ...anterior, fecha, sabor, chapas, ui, ue, cn, unidades, tapas, relleno, recibio, comodin, responsable, inicio, fin, duracionMin, desperdicio, obs, editedTs: Date.now() };
+        const nuevoArr = fresco.slice(); nuevoArr[idx] = actualizado;
+        return { arr: nuevoArr, resumen: `${sabor} · Unidades ${unidades} (antes: ${anterior.sabor} · Unidades ${anterior.unidades})` };
+      }, "editar", "producción");
+      if(ok === null) return;
+      state.produccion = ok ? arr : state.produccion;
+      if(ok){
+        toast("Registro de producción actualizado.");
+        cancelEditProduccion();
+        renderProduccionRecientes(); renderCnAlert(); renderPendientes(); renderEstimadoRelleno(); updateAlertDot();
+      } else {
+        toast("No se pudo guardar. Andá a Ajustes y tocá \"Probar guardado ahora\".", true);
+      }
+    } finally { btn.disabled = false; }
+  }
+
+  function cancelEditProduccion(){
+    editingId.produccion = null;
+    document.getElementById("produccion-editing-banner").classList.remove("show");
+    document.querySelector("#form-produccion .submit-btn").textContent = "Agregar a la lista";
+    limpiarCamposProduccion();
+  }
+  document.getElementById("produccion-cancel-edit").addEventListener("click", cancelEditProduccion);
+
+  document.getElementById("produccion-btn-registrar-todo").addEventListener("click", async () => {
+    if(stagingProduccion.length === 0) return;
+    const fecha = document.getElementById("produccion-fecha").value || todayStr();
+    const btn = document.getElementById("produccion-btn-registrar-todo");
+    btn.disabled = true;
+    try{
+      const nuevos = stagingProduccion.map(item => ({ id: uid(), fecha, ts: Date.now(), ...item }));
+      const all = await getAllFresh();
+      const arrFresco = (all && Array.isArray(all[KEY_PRODUCCION])) ? all[KEY_PRODUCCION] : state.produccion;
+      const arrNuevo = arrFresco.concat(nuevos);
+      let auditArr = (all && Array.isArray(all[KEY_AUDITORIA])) ? all[KEY_AUDITORIA] : state.auditoria;
+      nuevos.forEach(rec => {
+        auditArr = appendAuditArray(auditArr, buildAuditEntry("crear", "producción", `${rec.sabor} · Unidades ${rec.unidades}${rec.cn>0 ? " · C.N. "+rec.cn : ""} (${fmtFecha(fecha)})`));
+      });
+      const ok = await setSharedBatch([{ key: KEY_PRODUCCION, value: arrNuevo }, { key: KEY_AUDITORIA, value: auditArr }]);
+      if(ok){
+        state.produccion = arrNuevo; state.auditoria = auditArr;
+        toast(`${nuevos.length} sabor${nuevos.length!==1?"es":""} registrado${nuevos.length!==1?"s":""}.`);
+        stagingProduccion = [];
+        renderProduccionStaging(); renderProduccionRecientes(); renderCnAlert(); renderPendientes(); renderEstimadoRelleno(); updateAlertDot();
+      } else {
+        toast("No se pudo guardar. Andá a Ajustes y tocá \"Probar guardado ahora\".", true);
+      }
+    } finally { btn.disabled = false; }
+  });
+
+  function renderProduccionRecientes(){
+    const cont = document.getElementById("produccion-recientes");
+    const fechaSel = fechaFiltroSeleccionada("produccion-filtro-fecha");
+    const esHoy = fechaSel === todayStr();
+    const rows = state.produccion.filter(r => r.fecha === fechaSel).sort((a,b)=> b.ts - a.ts);
+    cont.innerHTML = "";
+    if(rows.length === 0){
+      cont.innerHTML = `<div class="empty-state">${esHoy ? "Todavía no hay producción cargada hoy." : "No hay registros para el " + fmtFecha(fechaSel) + "."}</div>`;
+      return;
+    }
+    rows.forEach(r => {
+      const eqTxt = equipoResumen(r);
+      const div = document.createElement("div");
+      div.className = "reg-row" + (Number(r.cn||0) > 0 ? " cn-row" : "");
+      div.innerHTML = `
+        <div class="reg-main">
+          <div class="reg-sabor">${r.sabor}</div>
+          <div class="reg-meta">${fmtFecha(r.fecha)} · ${resumenProduccion(r)}${eqTxt ? " · " + escapeHtml(eqTxt) : ""}${r.duracionMin!=null ? " · "+r.duracionMin+" min" : ""}${r.desperdicio>0 ? " · Desperdicio: "+Number(r.desperdicio).toFixed(3)+"kg" : ""}</div>
+        </div>
+        <div class="reg-nums">
+          <div class="kg">${r.unidades}</div>
+          ${Number(r.cn||0) > 0 ? `<div class="cn-badge">${r.cn} C.N.</div>` : ""}
+        </div>
+        <div class="reg-actions">
+          <button type="button" class="reg-action-btn edit-btn">Editar</button>
+          <button type="button" class="reg-action-btn delete-btn">Borrar</button>
+        </div>`;
+      div.querySelector(".edit-btn").addEventListener("click", () => requierePin(() => startEditProduccion(r)));
+      div.querySelector(".delete-btn").addEventListener("click", () => requierePin(() => deleteProduccion(r)));
+      cont.appendChild(div);
+    });
+  }
+
+  function startEditProduccion(r){
+    editingId.produccion = r.id;
+    document.getElementById("produccion-fecha").value = r.fecha;
+    refrescarSaborSelectProduccion();
+    document.getElementById("produccion-sabor").value = r.sabor;
+    document.getElementById("produccion-chapas").value = r.chapas || 0;
+    document.getElementById("produccion-ui").value = r.ui;
+    document.getElementById("produccion-ue").value = r.ue;
+    document.getElementById("produccion-cn").value = r.cn;
+    document.getElementById("produccion-tapas").value = r.tapas || "";
+    document.getElementById("produccion-relleno").value = r.relleno || "";
+    document.getElementById("produccion-recibio").value = r.recibio || "";
+    document.getElementById("produccion-comodin").value = r.comodin || "";
+    document.getElementById("produccion-responsable").value = r.responsable || "";
+    document.getElementById("produccion-inicio").value = r.inicio || "";
+    document.getElementById("produccion-fin").value = r.fin || "";
+    document.getElementById("produccion-desperdicio").value = r.desperdicio || 0;
+    document.getElementById("produccion-obs").value = r.obs || "";
+    calcularTotalProduccion(); calcularDuracion();
+    document.getElementById("produccion-editing-banner").classList.add("show");
+    document.querySelector("#form-produccion .submit-btn").textContent = "Guardar cambios";
+    document.getElementById("form-produccion").scrollIntoView({ behavior:"smooth", block:"start" });
+  }
+
+  async function deleteProduccion(r){
+    if(!confirm(`¿Borrar el registro de ${r.sabor} (Unidades ${r.unidades})? Queda en el Historial.`)) return;
+    const { ok, arr } = await guardarConAuditoria(KEY_PRODUCCION, state.produccion, (fresco) => {
+      return { arr: fresco.filter(x => x.id !== r.id), resumen: `${r.sabor} · Unidades ${r.unidades} (${fmtFecha(r.fecha)})` };
+    }, "borrar", "producción");
+    state.produccion = ok ? arr : state.produccion;
+    if(ok){
+      toast("Registro borrado.");
+      if(editingId.produccion === r.id) cancelEditProduccion();
+      renderProduccionRecientes(); renderCnAlert(); renderPendientes(); renderEstimadoRelleno(); updateAlertDot();
+    } else { toast("No se pudo borrar. Reintentá.", true); }
+  }
+
+  // ---------------- Muzzarella ----------------
+  function renderMuzzarellaStaging(){
+    const cont = document.getElementById("muzzarella-staging-list");
+    const btnTodo = document.getElementById("muzzarella-btn-registrar-todo");
+    cont.innerHTML = "";
+    if(stagingMuzzarella.length === 0){
+      cont.innerHTML = `<div class="empty-state">Todavía no agregaste ningún sabor a la lista.</div>`;
+      btnTodo.style.display = "none";
+      return;
+    }
+    stagingMuzzarella.forEach((item, idx) => {
+      const div = document.createElement("div");
+      div.className = "reg-row";
+      div.innerHTML = `
+        <div class="reg-main"><div class="reg-sabor">${item.sabor}</div></div>
+        <div class="reg-nums"><div class="kg">${item.kg.toFixed(1)} kg</div></div>
+        <div class="reg-actions">
+          <button type="button" class="reg-action-btn edit-btn">Editar</button>
+          <button type="button" class="reg-action-btn delete-btn">Quitar</button>
+        </div>`;
+      div.querySelector(".edit-btn").addEventListener("click", () => {
+        document.getElementById("muzzarella-sabor").value = item.sabor;
+        document.getElementById("muzzarella-kg").value = item.kg;
+        document.getElementById("muzzarella-obs").value = item.obs || "";
+        stagingMuzzarella.splice(idx,1);
+        renderMuzzarellaStaging();
+        toast("Corregí los datos y tocá \"Agregar a la lista\" de nuevo.");
+      });
+      div.querySelector(".delete-btn").addEventListener("click", () => { stagingMuzzarella.splice(idx,1); renderMuzzarellaStaging(); });
+      cont.appendChild(div);
+    });
+    btnTodo.style.display = "block";
+    btnTodo.textContent = `Registrar todo (${stagingMuzzarella.length})`;
+  }
+
+  document.getElementById("form-muzzarella").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if(editingId.muzzarella){ submitEditMuzzarella(); return; }
+    const sabor = document.getElementById("muzzarella-sabor").value;
+    const kg = Number(document.getElementById("muzzarella-kg").value);
+    if(!sabor){ toast("Elegí un sabor.", true); return; }
+    if(!(kg > 0)){ toast("Ingresá los kg usados.", true); return; }
+    const obs = document.getElementById("muzzarella-obs").value.trim();
+    stagingMuzzarella.push({ sabor, kg, obs });
+    renderMuzzarellaStaging();
+    toast(`${sabor} agregado a la lista.`);
+    document.getElementById("muzzarella-kg").value = "";
+    document.getElementById("muzzarella-obs").value = "";
+  });
+
+  async function submitEditMuzzarella(){
+    const btn = document.querySelector("#form-muzzarella .submit-btn");
+    btn.disabled = true;
+    try{
+      const fecha = document.getElementById("muzzarella-fecha").value || todayStr();
+      const sabor = document.getElementById("muzzarella-sabor").value;
+      const kg = Number(document.getElementById("muzzarella-kg").value)||0;
+      const obs = document.getElementById("muzzarella-obs").value.trim();
+      const idEditando = editingId.muzzarella;
+      const { ok, arr } = await guardarConAuditoria(KEY_MUZZARELLA, state.muzzarella, (fresco) => {
+        const idx = fresco.findIndex(x => x.id === idEditando);
+        if(idx === -1){ toast("Ese registro ya no existe.", true); cancelEditMuzzarella(); return null; }
+        const anterior = fresco[idx];
+        const actualizado = { ...anterior, fecha, sabor, kg, obs, editedTs: Date.now() };
+        const nuevoArr = fresco.slice(); nuevoArr[idx] = actualizado;
+        return { arr: nuevoArr, resumen: `${sabor} · ${kg.toFixed(1)} kg (antes: ${anterior.sabor} · ${anterior.kg.toFixed(1)} kg)` };
+      }, "editar", "muzzarella");
+      if(ok === null) return;
+      state.muzzarella = ok ? arr : state.muzzarella;
+      if(ok){
+        toast("Registro actualizado.");
+        cancelEditMuzzarella();
+        renderMuzzarellaRecientes(); updateAlertDot();
+      } else { toast("No se pudo guardar.", true); }
+    } finally { btn.disabled = false; }
+  }
+  function cancelEditMuzzarella(){
+    editingId.muzzarella = null;
+    document.getElementById("muzzarella-editing-banner").classList.remove("show");
+    document.querySelector("#form-muzzarella .submit-btn").textContent = "Agregar a la lista";
+    document.getElementById("muzzarella-kg").value = "";
+    document.getElementById("muzzarella-obs").value = "";
+  }
+  document.getElementById("muzzarella-cancel-edit").addEventListener("click", cancelEditMuzzarella);
+
+  document.getElementById("muzzarella-btn-registrar-todo").addEventListener("click", async () => {
+    if(stagingMuzzarella.length === 0) return;
+    const fecha = document.getElementById("muzzarella-fecha").value || todayStr();
+    const btn = document.getElementById("muzzarella-btn-registrar-todo");
+    btn.disabled = true;
+    try{
+      const nuevos = stagingMuzzarella.map(item => ({ id: uid(), fecha, ts: Date.now(), ...item }));
+      const all = await getAllFresh();
+      const arrFresco = (all && Array.isArray(all[KEY_MUZZARELLA])) ? all[KEY_MUZZARELLA] : state.muzzarella;
+      const arrNuevo = arrFresco.concat(nuevos);
+      let auditArr = (all && Array.isArray(all[KEY_AUDITORIA])) ? all[KEY_AUDITORIA] : state.auditoria;
+      nuevos.forEach(rec => { auditArr = appendAuditArray(auditArr, buildAuditEntry("crear", "muzzarella", `${rec.sabor} · ${rec.kg.toFixed(1)} kg (${fmtFecha(fecha)})`)); });
+      const ok = await setSharedBatch([{ key: KEY_MUZZARELLA, value: arrNuevo }, { key: KEY_AUDITORIA, value: auditArr }]);
+      if(ok){
+        state.muzzarella = arrNuevo; state.auditoria = auditArr;
+        toast(`${nuevos.length} registrado${nuevos.length!==1?"s":""}.`);
+        stagingMuzzarella = [];
+        renderMuzzarellaStaging(); renderMuzzarellaRecientes(); updateAlertDot();
+      } else { toast("No se pudo guardar.", true); }
+    } finally { btn.disabled = false; }
+  });
+
+  function renderMuzzarellaRecientes(){
+    const cont = document.getElementById("muzzarella-recientes");
+    const fechaSel = fechaFiltroSeleccionada("muzzarella-filtro-fecha");
+    const esHoy = fechaSel === todayStr();
+    const rows = state.muzzarella.filter(r => r.fecha === fechaSel).sort((a,b)=> b.ts - a.ts);
+    cont.innerHTML = "";
+    if(rows.length === 0){
+      cont.innerHTML = `<div class="empty-state">${esHoy ? "Todavía no hay muzzarella cargada hoy." : "No hay registros para el " + fmtFecha(fechaSel) + "."}</div>`;
+      return;
+    }
+    rows.forEach(r => {
+      const div = document.createElement("div");
+      div.className = "reg-row";
+      div.innerHTML = `
+        <div class="reg-main">
+          <div class="reg-sabor">${r.sabor}</div>
+          <div class="reg-meta">${fmtFecha(r.fecha)}${r.obs ? " · " + escapeHtml(r.obs) : ""}</div>
+        </div>
+        <div class="reg-nums"><div class="kg">${Number(r.kg).toFixed(1)} kg</div></div>
+        <div class="reg-actions">
+          <button type="button" class="reg-action-btn edit-btn">Editar</button>
+          <button type="button" class="reg-action-btn delete-btn">Borrar</button>
+        </div>`;
+      div.querySelector(".edit-btn").addEventListener("click", () => requierePin(() => {
+        editingId.muzzarella = r.id;
+        document.getElementById("muzzarella-fecha").value = r.fecha;
+        document.getElementById("muzzarella-sabor").value = r.sabor;
+        document.getElementById("muzzarella-kg").value = r.kg;
+        document.getElementById("muzzarella-obs").value = r.obs || "";
+        document.getElementById("muzzarella-editing-banner").classList.add("show");
+        document.querySelector("#form-muzzarella .submit-btn").textContent = "Guardar cambios";
+        document.getElementById("form-muzzarella").scrollIntoView({ behavior:"smooth", block:"start" });
+      }));
+      div.querySelector(".delete-btn").addEventListener("click", () => requierePin(async () => {
+        if(!confirm(`¿Borrar ${r.sabor} · ${Number(r.kg).toFixed(1)} kg? Queda en el Historial.`)) return;
+        const { ok, arr } = await guardarConAuditoria(KEY_MUZZARELLA, state.muzzarella, (fresco) => {
+          return { arr: fresco.filter(x => x.id !== r.id), resumen: `${r.sabor} · ${Number(r.kg).toFixed(1)} kg (${fmtFecha(r.fecha)})` };
+        }, "borrar", "muzzarella");
+        state.muzzarella = ok ? arr : state.muzzarella;
+        if(ok){ toast("Borrado."); if(editingId.muzzarella === r.id) cancelEditMuzzarella(); renderMuzzarellaRecientes(); updateAlertDot(); }
+        else toast("No se pudo borrar.", true);
+      }));
+      cont.appendChild(div);
+    });
+  }
+
+  // ---------------- Insumos ----------------
+  function actualizarInsumoSelect(){
+    const sabor = document.getElementById("insumos-sabor").value;
+    const lista = INSUMOS_POR_SABOR[sabor] || [];
+    fillSelect(document.getElementById("insumos-insumo"), lista);
+  }
+  document.getElementById("insumos-sabor").addEventListener("change", actualizarInsumoSelect);
+
+  function renderInsumosStaging(){
+    const cont = document.getElementById("insumos-staging-list");
+    const btnTodo = document.getElementById("insumos-btn-registrar-todo");
+    cont.innerHTML = "";
+    if(stagingInsumos.length === 0){
+      cont.innerHTML = `<div class="empty-state">Todavía no agregaste ningún insumo a la lista.</div>`;
+      btnTodo.style.display = "none";
+      return;
+    }
+    stagingInsumos.forEach((item, idx) => {
+      const div = document.createElement("div");
+      div.className = "reg-row";
+      div.innerHTML = `
+        <div class="reg-main">
+          <div class="reg-sabor">${item.sabor}</div>
+          <div class="reg-meta">${item.insumo}</div>
+        </div>
+        <div class="reg-nums"><div class="kg">${item.kg.toFixed(1)} kg</div></div>
+        <div class="reg-actions">
+          <button type="button" class="reg-action-btn edit-btn">Editar</button>
+          <button type="button" class="reg-action-btn delete-btn">Quitar</button>
+        </div>`;
+      div.querySelector(".edit-btn").addEventListener("click", () => {
+        document.getElementById("insumos-sabor").value = item.sabor;
+        actualizarInsumoSelect();
+        document.getElementById("insumos-insumo").value = item.insumo;
+        document.getElementById("insumos-kg").value = item.kg;
+        document.getElementById("insumos-obs").value = item.obs || "";
+        stagingInsumos.splice(idx,1);
+        renderInsumosStaging();
+        toast("Corregí los datos y tocá \"Agregar a la lista\" de nuevo.");
+      });
+      div.querySelector(".delete-btn").addEventListener("click", () => { stagingInsumos.splice(idx,1); renderInsumosStaging(); });
+      cont.appendChild(div);
+    });
+    btnTodo.style.display = "block";
+    btnTodo.textContent = `Registrar todo (${stagingInsumos.length})`;
+  }
+
+  document.getElementById("form-insumos").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if(editingId.insumos){ submitEditInsumos(); return; }
+    const sabor = document.getElementById("insumos-sabor").value;
+    const insumo = document.getElementById("insumos-insumo").value;
+    const kg = Number(document.getElementById("insumos-kg").value);
+    if(!sabor || !insumo){ toast("Elegí sabor e insumo.", true); return; }
+    if(!(kg > 0)){ toast("Ingresá los kg usados.", true); return; }
+    const obs = document.getElementById("insumos-obs").value.trim();
+    stagingInsumos.push({ sabor, insumo, kg, obs });
+    renderInsumosStaging();
+    toast(`${insumo} agregado a la lista.`);
+    document.getElementById("insumos-kg").value = "";
+    document.getElementById("insumos-obs").value = "";
+  });
+
+  async function submitEditInsumos(){
+    const btn = document.querySelector("#form-insumos .submit-btn");
+    btn.disabled = true;
+    try{
+      const fecha = document.getElementById("insumos-fecha").value || todayStr();
+      const sabor = document.getElementById("insumos-sabor").value;
+      const insumo = document.getElementById("insumos-insumo").value;
+      const kg = Number(document.getElementById("insumos-kg").value)||0;
+      const obs = document.getElementById("insumos-obs").value.trim();
+      const idEditando = editingId.insumos;
+      const { ok, arr } = await guardarConAuditoria(KEY_INSUMOS, state.insumos, (fresco) => {
+        const idx = fresco.findIndex(x => x.id === idEditando);
+        if(idx === -1){ toast("Ese registro ya no existe.", true); cancelEditInsumos(); return null; }
+        const anterior = fresco[idx];
+        const actualizado = { ...anterior, fecha, sabor, insumo, kg, obs, editedTs: Date.now() };
+        const nuevoArr = fresco.slice(); nuevoArr[idx] = actualizado;
+        return { arr: nuevoArr, resumen: `${sabor} · ${insumo} · ${kg.toFixed(1)} kg (antes: ${anterior.insumo} · ${anterior.kg.toFixed(1)} kg)` };
+      }, "editar", "insumos");
+      if(ok === null) return;
+      state.insumos = ok ? arr : state.insumos;
+      if(ok){ toast("Registro actualizado."); cancelEditInsumos(); renderInsumosRecientes(); updateAlertDot(); }
+      else toast("No se pudo guardar.", true);
+    } finally { btn.disabled = false; }
+  }
+  function cancelEditInsumos(){
+    editingId.insumos = null;
+    document.getElementById("insumos-editing-banner").classList.remove("show");
+    document.querySelector("#form-insumos .submit-btn").textContent = "Agregar a la lista";
+    document.getElementById("insumos-kg").value = "";
+    document.getElementById("insumos-obs").value = "";
+  }
+  document.getElementById("insumos-cancel-edit").addEventListener("click", cancelEditInsumos);
+
+  document.getElementById("insumos-btn-registrar-todo").addEventListener("click", async () => {
+    if(stagingInsumos.length === 0) return;
+    const fecha = document.getElementById("insumos-fecha").value || todayStr();
+    const btn = document.getElementById("insumos-btn-registrar-todo");
+    btn.disabled = true;
+    try{
+      const nuevos = stagingInsumos.map(item => ({ id: uid(), fecha, ts: Date.now(), ...item }));
+      const all = await getAllFresh();
+      const arrFresco = (all && Array.isArray(all[KEY_INSUMOS])) ? all[KEY_INSUMOS] : state.insumos;
+      const arrNuevo = arrFresco.concat(nuevos);
+      let auditArr = (all && Array.isArray(all[KEY_AUDITORIA])) ? all[KEY_AUDITORIA] : state.auditoria;
+      nuevos.forEach(rec => { auditArr = appendAuditArray(auditArr, buildAuditEntry("crear", "insumos", `${rec.sabor} · ${rec.insumo} · ${rec.kg.toFixed(1)} kg (${fmtFecha(fecha)})`)); });
+      const ok = await setSharedBatch([{ key: KEY_INSUMOS, value: arrNuevo }, { key: KEY_AUDITORIA, value: auditArr }]);
+      if(ok){
+        state.insumos = arrNuevo; state.auditoria = auditArr;
+        toast(`${nuevos.length} registrado${nuevos.length!==1?"s":""}.`);
+        stagingInsumos = [];
+        renderInsumosStaging(); renderInsumosRecientes(); updateAlertDot();
+      } else { toast("No se pudo guardar.", true); }
+    } finally { btn.disabled = false; }
+  });
+
+  function renderInsumosRecientes(){
+    const cont = document.getElementById("insumos-recientes");
+    const fechaSel = fechaFiltroSeleccionada("insumos-filtro-fecha");
+    const esHoy = fechaSel === todayStr();
+    const rows = state.insumos.filter(r => r.fecha === fechaSel).sort((a,b)=> b.ts - a.ts);
+    cont.innerHTML = "";
+    if(rows.length === 0){
+      cont.innerHTML = `<div class="empty-state">${esHoy ? "Todavía no hay insumos cargados hoy." : "No hay registros para el " + fmtFecha(fechaSel) + "."}</div>`;
+      return;
+    }
+    rows.forEach(r => {
+      const div = document.createElement("div");
+      div.className = "reg-row";
+      div.innerHTML = `
+        <div class="reg-main">
+          <div class="reg-sabor">${r.sabor}</div>
+          <div class="reg-meta">${fmtFecha(r.fecha)} · ${r.insumo}${r.obs ? " · " + escapeHtml(r.obs) : ""}</div>
+        </div>
+        <div class="reg-nums"><div class="kg">${Number(r.kg).toFixed(1)} kg</div></div>
+        <div class="reg-actions">
+          <button type="button" class="reg-action-btn edit-btn">Editar</button>
+          <button type="button" class="reg-action-btn delete-btn">Borrar</button>
+        </div>`;
+      div.querySelector(".edit-btn").addEventListener("click", () => requierePin(() => {
+        editingId.insumos = r.id;
+        document.getElementById("insumos-fecha").value = r.fecha;
+        document.getElementById("insumos-sabor").value = r.sabor;
+        actualizarInsumoSelect();
+        document.getElementById("insumos-insumo").value = r.insumo;
+        document.getElementById("insumos-kg").value = r.kg;
+        document.getElementById("insumos-obs").value = r.obs || "";
+        document.getElementById("insumos-editing-banner").classList.add("show");
+        document.querySelector("#form-insumos .submit-btn").textContent = "Guardar cambios";
+        document.getElementById("form-insumos").scrollIntoView({ behavior:"smooth", block:"start" });
+      }));
+      div.querySelector(".delete-btn").addEventListener("click", () => requierePin(async () => {
+        if(!confirm(`¿Borrar ${r.sabor} · ${r.insumo} · ${Number(r.kg).toFixed(1)} kg? Queda en el Historial.`)) return;
+        const { ok, arr } = await guardarConAuditoria(KEY_INSUMOS, state.insumos, (fresco) => {
+          return { arr: fresco.filter(x => x.id !== r.id), resumen: `${r.sabor} · ${r.insumo} · ${Number(r.kg).toFixed(1)} kg (${fmtFecha(r.fecha)})` };
+        }, "borrar", "insumos");
+        state.insumos = ok ? arr : state.insumos;
+        if(ok){ toast("Borrado."); if(editingId.insumos === r.id) cancelEditInsumos(); renderInsumosRecientes(); updateAlertDot(); }
+        else toast("No se pudo borrar.", true);
+      }));
+      cont.appendChild(div);
+    });
+  }
+
+  // ---------------- Inicio ----------------
+  function renderInicio(){
+    const hoy = todayStr();
+    const prodHoy = state.produccion.filter(r => r.fecha === hoy);
+    const totalHoy = prodHoy.reduce((a,r)=> a + Number(r.unidades||0), 0);
+    document.getElementById("stat-total-hoy").textContent = totalHoy;
+    renderDetalleInicio();
+  }
+
+  document.getElementById("detalle-pin-btn").addEventListener("click", () => {
+    const val = document.getElementById("detalle-pin-input").value;
+    if(val === PEDIDO_PIN){
+      direccionDesbloqueada = true;
+      renderDetalleInicio();
+    } else {
+      document.getElementById("detalle-pin-error").style.display = "block";
+    }
+  });
+  document.getElementById("detalle-pin-input").addEventListener("keydown", (e) => {
+    if(e.key === "Enter") document.getElementById("detalle-pin-btn").click();
+  });
+
+  function renderDetalleInicio(){
+    const lock = document.getElementById("detalle-lock-screen");
+    const content = document.getElementById("detalle-content");
+    if(!direccionDesbloqueada){
+      lock.style.display = "block";
+      content.style.display = "none";
+      document.getElementById("detalle-pin-input").value = "";
+      document.getElementById("detalle-pin-error").style.display = "none";
+      return;
+    }
+    lock.style.display = "none";
+    content.style.display = "block";
+    renderHistorialDia();
+
+    const hoy = todayStr();
+    const prodHoy = state.produccion.filter(r => r.fecha === hoy);
+    const cnHoy = prodHoy.filter(r => Number(r.cn||0) > 0).length;
+    const muzzHoy = state.muzzarella.filter(r => r.fecha === hoy).reduce((a,r)=> a + Number(r.kg||0), 0);
+    const activos = saboresActivosDe(hoy);
+    const cargados = new Set(prodHoy.map(r => r.sabor));
+    const pendHoy = activos.filter(s => !cargados.has(s)).length;
+
+    document.getElementById("stat-cn-hoy").textContent = cnHoy;
+    document.getElementById("stat-muzz-hoy").textContent = muzzHoy.toFixed(1);
+    document.getElementById("stat-pend-hoy").textContent = pendHoy;
+
+    // Horarios de hoy, con duraciones calculadas
+    const h = state.horarios[hoy] || {};
+    const durDesayuno = minutosEntre(h.desayunoInicio, h.desayunoFin);
+    const durAlmuerzo = minutosEntre(h.almuerzoInicio, h.almuerzoFin);
+    const durJornada = minutosEntre(h.inicioDia, h.finDia);
+    const horCard = document.getElementById("detalle-horarios-card");
+    if(!h.inicioDia && !h.finDia && !h.desayunoInicio && !h.almuerzoInicio){
+      horCard.innerHTML = `<div class="empty-state">Todavía no se cargaron los horarios de hoy.</div>`;
+    } else {
+      horCard.innerHTML = `
+        <div class="comp-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; font-family:var(--font-mono); font-size:13px;">
+          <div><span class="tb-label">Jornada</span><br><span class="tb-value">${h.inicioDia||"—"} a ${h.finDia||"—"}${durJornada!=null?" ("+durJornada+" min)":""}</span></div>
+          <div><span class="tb-label">Desayuno</span><br><span class="tb-value">${h.desayunoInicio||"—"} a ${h.desayunoFin||"—"}${durDesayuno!=null?" ("+durDesayuno+" min)":""}</span></div>
+          <div><span class="tb-label">Almuerzo</span><br><span class="tb-value">${h.almuerzoInicio||"—"} a ${h.almuerzoFin||"—"}${durAlmuerzo!=null?" ("+durAlmuerzo+" min)":""}</span></div>
+        </div>`;
+    }
+
+    // Producción de hoy, detallada
+    const prodCont = document.getElementById("detalle-produccion-list");
+    if(prodHoy.length === 0){
+      prodCont.innerHTML = `<div class="empty-state">Todavía no hay producción cargada hoy.</div>`;
+    } else {
+      prodCont.innerHTML = "";
+      prodHoy.slice().sort((a,b)=> b.ts - a.ts).forEach(r => {
+        const eqTxt = equipoResumen(r);
+        const div = document.createElement("div");
+        div.className = "reg-row" + (Number(r.cn||0) > 0 ? " cn-row" : "");
+        div.innerHTML = `
+          <div class="reg-main">
+            <div class="reg-sabor">${r.sabor}</div>
+            <div class="reg-meta">${resumenProduccion(r)}${eqTxt ? " · " + escapeHtml(eqTxt) : ""}${r.duracionMin!=null ? " · "+r.duracionMin+" min" : ""}${r.desperdicio>0 ? " · Desperdicio: "+Number(r.desperdicio).toFixed(3)+"kg" : ""}</div>
+          </div>
+          <div class="reg-nums">
+            <div class="kg">${r.unidades}</div>
+            ${Number(r.cn||0) > 0 ? `<div class="cn-badge">${r.cn} C.N.</div>` : ""}
+          </div>`;
+        prodCont.appendChild(div);
+      });
+    }
+
+    // Comparativa: lo que debería haber salido (estimado de ayer) vs. lo real de hoy
+    renderComparativaEstimadoReal(hoy);
+
+    // Últimos movimientos (todas las secciones)
+    const cont = document.getElementById("inicio-recientes");
+    const todos = [
+      ...state.produccion.map(r => ({...r, tipoMov:"producción", valor: r.unidades + (r.cn>0 ? " (C.N. "+r.cn+")" : "")})),
+      ...state.muzzarella.map(r => ({...r, tipoMov:"muzzarella", valor: Number(r.kg).toFixed(1)+" kg"})),
+      ...state.insumos.map(r => ({...r, tipoMov:"insumos", valor: Number(r.kg).toFixed(1)+" kg · "+r.insumo}))
+    ].sort((a,b)=> b.ts - a.ts).slice(0,8);
+    cont.innerHTML = "";
+    if(todos.length === 0){ cont.innerHTML = `<div class="empty-state">Todavía no hay movimientos registrados.</div>`; return; }
+    todos.forEach(r => {
+      const div = document.createElement("div");
+      div.className = "reg-row";
+      div.innerHTML = `
+        <div class="reg-main">
+          <div class="reg-sabor">${r.sabor}</div>
+          <div class="reg-meta">${fmtFecha(r.fecha)} · ${r.tipoMov}</div>
+        </div>
+        <div class="reg-nums"><div class="kg">${r.valor}</div></div>`;
+      cont.appendChild(div);
+    });
+  }
+
+  async function renderComparativaEstimadoReal(hoy){
+    const cont = document.getElementById("detalle-comparativa-list");
+    cont.innerHTML = `<div class="empty-state">Consultando Control de Rellenos...</div>`;
+    // El estimado de hoy sale del relleno que llegó AYER (así lo pediste: lo que
+    // se carga hoy en Rellenos, se usa mañana acá).
+    const resultado = await calcularEstimado(fechaAyer());
+    const realPorSabor = {};
+    state.produccion.filter(r => r.fecha === hoy).forEach(r => {
+      realPorSabor[r.sabor] = (realPorSabor[r.sabor] || 0) + Number(r.unidades || 0);
+    });
+
+    if(resultado.error){
+      cont.innerHTML = `<div class="empty-state">No se pudo traer el estimado de Control de Rellenos: ${escapeHtml(resultado.error)}</div>`;
+      return;
+    }
+
+    const sabores = new Set([...resultado.filas.map(f=>f.saborProd), ...Object.keys(realPorSabor)]);
+    if(sabores.size === 0){
+      cont.innerHTML = `<div class="empty-state">Todavía no hay estimado ni producción real para comparar.</div>`;
+      return;
+    }
+    cont.innerHTML = "";
+    [...sabores].sort().forEach(sabor => {
+      const est = resultado.filas.find(f => f.saborProd === sabor);
+      const estimadoU = est ? est.unidadesEst : null;
+      const realU = realPorSabor[sabor] || 0;
+      const diff = estimadoU != null ? (realU - estimadoU) : null;
+      const div = document.createElement("div");
+      div.className = "reg-row";
+      div.innerHTML = `
+        <div class="reg-main">
+          <div class="reg-sabor">${sabor}</div>
+          <div class="reg-meta">Debía salir: ${estimadoU != null ? estimadoU + " u." : "sin estimado"}</div>
+        </div>
+        <div class="reg-nums">
+          <div class="kg">${realU} u.</div>
+          ${diff != null ? `<div class="bateas" style="color:${Math.abs(diff) <= 5 ? 'var(--success)' : 'var(--danger)'};">${diff >= 0 ? "+" : ""}${diff} u.</div>` : ""}
+        </div>`;
+      cont.appendChild(div);
+    });
+  }
+
+  function renderHistorialDia(){
+    const fecha = document.getElementById("historial-fecha").value || todayStr();
+    const registros = state.produccion.filter(r => r.fecha === fecha);
+    const totalUnidades = registros.reduce((a,r)=> a + Number(r.unidades||0), 0);
+    const totalMuzz = state.muzzarella.filter(r => r.fecha === fecha).reduce((a,r)=> a + Number(r.kg||0), 0);
+    document.getElementById("historial-total-unidades").textContent = totalUnidades;
+    document.getElementById("historial-total-muzz").textContent = totalMuzz.toFixed(1);
+
+    const cont = document.getElementById("historial-lista");
+    if(registros.length === 0){
+      cont.innerHTML = `<div class="empty-state">No hay producción cargada para el ${fmtFecha(fecha)}.</div>`;
+      return;
+    }
+    cont.innerHTML = "";
+    registros.slice().sort((a,b)=> b.ts - a.ts).forEach(r => {
+      const div = document.createElement("div");
+      div.className = "reg-row" + (Number(r.cn||0) > 0 ? " cn-row" : "");
+      div.innerHTML = `
+        <div class="reg-main">
+          <div class="reg-sabor">${r.sabor}</div>
+          <div class="reg-meta">Chapas ${r.chapas||0} · Responsable: ${escapeHtml(r.responsable||"—")}</div>
+        </div>
+        <div class="reg-nums">
+          <div class="kg">${r.unidades} u.</div>
+          ${Number(r.cn||0) > 0 ? `<div class="cn-badge">${r.cn} C.N.</div>` : ""}
+        </div>`;
+      cont.appendChild(div);
+    });
+  }
+  document.getElementById("historial-ver").addEventListener("click", renderHistorialDia);
+
+  function updateAlertDot(){
+    const hoy = todayStr();
+    const hasCn = state.produccion.some(r => r.fecha === hoy && Number(r.cn||0) > 0);
+    document.getElementById("nav-dot-produccion").classList.toggle("show", hasCn);
+  }
+
+  function renderHistorial(){
+    const cont = document.getElementById("historial-list");
+    cont.innerHTML = "";
+    const rows = [...state.auditoria].sort((a,b)=> b.ts - a.ts).slice(0,100);
+    if(rows.length === 0){ cont.innerHTML = `<div class="empty-state">Todavía no hay cambios registrados.</div>`; return; }
+    rows.forEach(r => {
+      const div = document.createElement("div");
+      div.className = "historial-item";
+      const accionLabel = r.accion === "crear" ? "Creado" : r.accion === "editar" ? "Editado" : "Borrado";
+      div.innerHTML = `
+        <div class="h-top"><span>${fmtFechaHora(r.ts)} · ${r.tipo}</span><span class="h-accion ${r.accion}">${accionLabel}</span></div>
+        <div class="h-resumen">${escapeHtml(r.resumen)}</div>`;
+      cont.appendChild(div);
+    });
+  }
+
+  // ---------------- Informes descargables ----------------
+  function descargarCSV(filename, headers, filas){
+    const escapeCSV = (v) => {
+      const s = String(v === undefined || v === null ? "" : v);
+      if(/[",;\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+      return s;
+    };
+    const lineas = [headers.map(escapeCSV).join(";")];
+    filas.forEach(f => lineas.push(f.map(escapeCSV).join(";")));
+    const csv = "\uFEFF" + lineas.join("\r\n"); // BOM para que Excel lea bien los acentos
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  function filasEnRango(arr){
+    const desde = document.getElementById("informe-desde").value;
+    const hasta = document.getElementById("informe-hasta").value;
+    let filas = arr.slice();
+    if(desde) filas = filas.filter(r => r.fecha >= desde);
+    if(hasta) filas = filas.filter(r => r.fecha <= hasta);
+    return filas.sort((a,b)=> a.fecha.localeCompare(b.fecha) || a.sabor.localeCompare(b.sabor));
+  }
+
+  function nombreArchivoRango(base){
+    const desde = document.getElementById("informe-desde").value;
+    const hasta = document.getElementById("informe-hasta").value;
+    const rango = (desde || hasta) ? `${desde||"inicio"}_a_${hasta||"hoy"}` : "todos-los-dias";
+    return `${base}_${rango}.csv`;
+  }
+
+  document.getElementById("btn-informe-produccion").addEventListener("click", () => {
+    const filas = filasEnRango(state.produccion);
+    if(filas.length === 0){ toast("No hay datos de producción en ese rango.", true); return; }
+    const headers = ["Fecha","Sabor","Chapas","U.I.","U.E.","C.N.","Unidades","Tapas","Relleno","Recibió","Comodín","Responsable","Inicio","Fin","Duración (min)","Desperdicio (kg)","Observaciones"];
+    const filasCSV = filas.map(r => [
+      fmtFecha(r.fecha), r.sabor, r.chapas||0, r.ui||0, r.ue||0, r.cn||0, r.unidades||0,
+      r.tapas||"", r.relleno||"", r.recibio||"", r.comodin||"", r.responsable||"",
+      r.inicio||"", r.fin||"", r.duracionMin!=null?r.duracionMin:"", r.desperdicio ? Number(r.desperdicio).toFixed(3) : "0.000",
+      r.obs||""
+    ]);
+    descargarCSV(nombreArchivoRango("produccion"), headers, filasCSV);
+    toast(`Informe descargado: ${filas.length} registro${filas.length!==1?"s":""}.`);
+  });
+
+  document.getElementById("btn-informe-muzzarella").addEventListener("click", () => {
+    const filas = filasEnRango(state.muzzarella);
+    if(filas.length === 0){ toast("No hay datos de muzzarella en ese rango.", true); return; }
+    const headers = ["Fecha","Sabor","Kg","Observaciones"];
+    const filasCSV = filas.map(r => [fmtFecha(r.fecha), r.sabor, Number(r.kg).toFixed(3), r.obs||""]);
+    descargarCSV(nombreArchivoRango("muzzarella"), headers, filasCSV);
+    toast(`Informe descargado: ${filas.length} registro${filas.length!==1?"s":""}.`);
+  });
+
+  document.getElementById("btn-informe-insumos").addEventListener("click", () => {
+    const filas = filasEnRango(state.insumos);
+    if(filas.length === 0){ toast("No hay datos de insumos en ese rango.", true); return; }
+    const headers = ["Fecha","Sabor","Insumo","Kg","Observaciones"];
+    const filasCSV = filas.map(r => [fmtFecha(r.fecha), r.sabor, r.insumo, Number(r.kg).toFixed(3), r.obs||""]);
+    descargarCSV(nombreArchivoRango("insumos"), headers, filasCSV);
+    toast(`Informe descargado: ${filas.length} registro${filas.length!==1?"s":""}.`);
+  });
+
+  document.getElementById("btn-informe-limpiar-fechas").addEventListener("click", () => {
+    document.getElementById("informe-desde").value = "";
+    document.getElementById("informe-hasta").value = "";
+    toast("Fechas vaciadas: el próximo informe va a incluir todos los días.");
+  });
+
+  // ---------------- Mapeo de rellenos ----------------
+  function renderMapeoRellenos(){
+    const cont = document.getElementById("mapeo-rellenos-table");
+    cont.innerHTML = "";
+    SABORES.forEach(s => {
+      const dato = datoMapeo(s);
+      const row = document.createElement("div");
+      row.className = "mapeo-row";
+      const opciones = [`<option value="">— Sin mapear —</option>`]
+        .concat(SABORES_RELLENO_EXTERNOS.map(sr => `<option value="${sr}" ${sr===dato.saborRelleno?"selected":""}>${sr}</option>`));
+      row.innerHTML = `
+        <div class="mr-nombre">${s}</div>
+        <div class="mr-campos">
+          <div>
+            <span class="mr-gramos-label">Relleno correspondiente</span>
+            <select data-mapeo-sabor="${s}" data-campo="saborRelleno">${opciones.join("")}</select>
+          </div>
+          <div>
+            <span class="mr-gramos-label">Gramos / empanada</span>
+            <input type="number" min="1" step="1" value="${dato.gramos}" data-mapeo-sabor="${s}" data-campo="gramos">
+          </div>
+        </div>`;
+      cont.appendChild(row);
+    });
+  }
+
+  document.getElementById("btn-guardar-mapeo").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-guardar-mapeo");
+    btn.disabled = true;
+    try{
+      const nuevo = {};
+      SABORES.forEach(s => {
+        const sel = document.querySelector(`select[data-mapeo-sabor="${CSS.escape(s)}"]`);
+        const inp = document.querySelector(`input[data-mapeo-sabor="${CSS.escape(s)}"]`);
+        nuevo[s] = { saborRelleno: sel ? sel.value : "", gramos: inp ? (Number(inp.value)||50) : 50 };
+      });
+      const all = await getAllFresh();
+      const auditBase = (all && Array.isArray(all[KEY_AUDITORIA])) ? all[KEY_AUDITORIA] : state.auditoria;
+      const auditArr = appendAuditArray(auditBase, buildAuditEntry("editar", "mapeo de rellenos", "Se actualizó el mapeo de sabores y gramos por empanada."));
+      const ok = await setSharedBatch([{ key: KEY_MAPEO_RELLENOS, value: nuevo }, { key: KEY_AUDITORIA, value: auditArr }]);
+      if(ok){
+        state.mapeoRellenos = nuevo;
+        state.auditoria = auditArr;
+        toast("Mapeo guardado.");
+        renderEstimadoRelleno();
+      } else {
+        toast("No se pudo guardar. Reintentá.", true);
+      }
+    } finally { btn.disabled = false; }
+  });
+
+  document.getElementById("btn-probar-rellenos").addEventListener("click", async () => {
+    const out = document.getElementById("rellenos-diag-resultado");
+    out.textContent = "Probando...";
+    const data = await fetchRellenosAll();
+    if(!data){
+      out.textContent = "✘ No se pudo conectar → " + (lastRellenosError || "motivo desconocido");
+      return;
+    }
+    const cantidadRegistros = Array.isArray(data["regs-produccion"]) ? data["regs-produccion"].length : 0;
+    out.textContent = `✔ Conexión exitosa.\nRegistros de producción de rellenos encontrados: ${cantidadRegistros}`;
+  });
+
+  document.getElementById("estimado-actualizar").addEventListener("click", renderEstimadoRelleno);
+
+  // ---------------- Diagnóstico ----------------
+  document.getElementById("btn-diagnostico").addEventListener("click", async () => {
+    const out = document.getElementById("diag-resultado");
+    out.textContent = "Probando...";
+    const apiUrl = getConfiguredApiUrl();
+    const lineas = [];
+    if(!apiUrl){
+      lineas.push("→ No hay ninguna URL de backend configurada.");
+      lineas.push("→ Completá el cuadro de arriba (o agregá ?api=... a la dirección).");
+      out.textContent = lineas.join("\n");
+      return;
+    }
+    lineas.push("URL configurada: " + apiUrl);
+    try{
+      const setRes = await fetch(apiUrl, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ key:"diagnostico-test", value: JSON.stringify({ ping: Date.now() }) }) });
+      const setData = await setRes.json();
+      lineas.push("POST (guardar) → estado " + setRes.status + " · " + JSON.stringify(setData));
+      const getRes = await fetch(apiUrl + "?key=diagnostico-test");
+      const getData = await getRes.json();
+      lineas.push("GET (leer) → estado " + getRes.status + " · " + JSON.stringify(getData));
+      if(setData && setData.ok === true){
+        lineas.push(""); lineas.push("✔ El guardado compartido funciona en este dispositivo.");
+        storageConfirmedWorking = true; lastStorageError = null; updateStorageBanner();
+      } else {
+        lineas.push(""); lineas.push("✘ El servidor respondió pero no confirmó el guardado.");
+      }
+    }catch(e){
+      lineas.push("✘ Falló la conexión → " + (e && e.message ? e.message : String(e)));
+    }
+    out.textContent = lineas.join("\n");
+  });
+
+  document.getElementById("config-api-test").addEventListener("click", async () => {
+    const input = document.getElementById("config-api-input");
+    const out = document.getElementById("config-api-result");
+    const url = input.value.trim();
+    if(!url){ out.textContent = "Pegá primero la URL de tu Apps Script."; return; }
+    out.textContent = "Probando...";
+    sessionApiOverride = url;
+    const testKey = "diagnostico-test";
+    try{
+      const setRes = await fetch(url, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ key:testKey, value: JSON.stringify({ ping: Date.now() }) }) });
+      const setData = await setRes.json();
+      if(!setData || setData.ok !== true) throw new Error(setData && setData.error ? setData.error : "respuesta inesperada del servidor");
+      const getRes = await fetch(url + "?key=" + encodeURIComponent(testKey));
+      const getData = await getRes.json();
+      if(getData && getData.error) throw new Error(getData.error);
+      out.textContent = "✔ Conexión exitosa. Cargando datos...";
+      storageConfirmedWorking = true; lastStorageError = null;
+      await loadAll();
+      const activeBtn = document.querySelector(".bottomnav button.active");
+      const name = activeBtn ? activeBtn.dataset.view : "inicio";
+      refreshView(name);
+      out.textContent = "✔ Conexión exitosa y funcionando.\n\nOjo: esta URL solo queda guardada mientras esta pestaña esté abierta. Para que quede fija en todas las tablets, pegá esta misma URL en la constante APPS_SCRIPT_URL_FALLBACK cerca del principio del archivo (o mandámela para que te la deje ya integrada).";
+    }catch(e){
+      out.textContent = "✘ No se pudo conectar → " + (e && e.message ? e.message : String(e));
+      sessionApiOverride = null;
+      lastStorageError = e && e.message ? e.message : String(e);
+    }
+    updateStorageBanner();
+  });
+
+  // ---------------- Init ----------------
+  // ---------------- Detectar cambio de día (si la app queda abierta de un día para el otro) ----------------
+  let ultimoDiaConocido = todayStr();
+  function diaMenosUno(fechaStr){
+    const [y,m,d] = fechaStr.split("-").map(Number);
+    const dt = new Date(y, m-1, d);
+    dt.setDate(dt.getDate() - 1);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+  }
+  function actualizarFechasSiCambioElDia(){
+    const hoyActual = todayStr();
+    if(hoyActual === ultimoDiaConocido) return false;
+    const hoyViejo = ultimoDiaConocido;
+    const ayerViejo = diaMenosUno(hoyViejo);
+
+    // Solo actualiza los campos que todavía tenían la fecha vieja — si alguien
+    // ya lo había cambiado a propósito a otro día, no le pisamos esa elección.
+    ["pedido-fecha","produccion-fecha","muzzarella-fecha","insumos-fecha","produccion-filtro-fecha","muzzarella-filtro-fecha","insumos-filtro-fecha"].forEach(id => {
+      const el = document.getElementById(id);
+      if(el && el.value === hoyViejo) el.value = hoyActual;
+    });
+    const estimadoEl = document.getElementById("estimado-fecha");
+    if(estimadoEl && estimadoEl.value === ayerViejo) estimadoEl.value = fechaAyer();
+
+    ultimoDiaConocido = hoyActual;
+    return true;
+  }
+
+  async function init(){
+    updateStorageBanner();
+
+    fillSelect(document.getElementById("produccion-sabor"), SABORES);
+    fillSelect(document.getElementById("muzzarella-sabor"), SABORES_MUZZARELLA);
+    fillSelect(document.getElementById("insumos-sabor"), SABORES_INSUMOS);
+    actualizarInsumoSelect();
+
+    document.getElementById("pedido-fecha").value = todayStr();
+    document.getElementById("produccion-fecha").value = todayStr();
+    document.getElementById("muzzarella-fecha").value = todayStr();
+    document.getElementById("insumos-fecha").value = todayStr();
+    document.getElementById("produccion-filtro-fecha").value = todayStr();
+    document.getElementById("muzzarella-filtro-fecha").value = todayStr();
+    document.getElementById("insumos-filtro-fecha").value = todayStr();
+    document.getElementById("estimado-fecha").value = fechaAyer();
+    document.getElementById("historial-fecha").value = todayStr();
+
+    document.getElementById("produccion-filtro-fecha").addEventListener("change", renderProduccionRecientes);
+    document.getElementById("muzzarella-filtro-fecha").addEventListener("change", renderMuzzarellaRecientes);
+    document.getElementById("insumos-filtro-fecha").addEventListener("change", renderInsumosRecientes);
+    document.getElementById("produccion-filtro-hoy").addEventListener("click", () => { document.getElementById("produccion-filtro-fecha").value = todayStr(); renderProduccionRecientes(); });
+    document.getElementById("muzzarella-filtro-hoy").addEventListener("click", () => { document.getElementById("muzzarella-filtro-fecha").value = todayStr(); renderMuzzarellaRecientes(); });
+    document.getElementById("insumos-filtro-hoy").addEventListener("click", () => { document.getElementById("insumos-filtro-fecha").value = todayStr(); renderInsumosRecientes(); });
+
+    calcularTotalProduccion(); calcularDuracion();
+    refrescarSaborSelectProduccion();
+
+    await loadAll();
+    renderInicio();
+    updateAlertDot();
+
+    setInterval(async () => {
+      const activeBtn = document.querySelector(".bottomnav button.active");
+      const name = activeBtn ? activeBtn.dataset.view : "inicio";
+      const cambioDeDia = actualizarFechasSiCambioElDia();
+      await loadAll();
+      if(cambioDeDia){
+        await refreshView(name); // refresca todo con la fecha nueva
+      } else {
+        if(name === "inicio") renderInicio();
+      }
+      updateAlertDot();
+    }, 20000);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
